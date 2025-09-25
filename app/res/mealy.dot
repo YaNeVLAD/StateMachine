@@ -1,0 +1,9 @@
+digraph MealyMachine {
+    "a" [label = "a"]
+    "b" [label = "b"]
+
+    "a" -> "b" [label = "x1 / 0"]
+    "a" -> "b" [label = "x2 / 1"]
+    "b" -> "a" [label = "x1 / 1"]
+    "b" -> "a" [label = "x2 / 0"]
+}
