@@ -2,6 +2,7 @@
 #define DEFAULT_TRANSLATOR_HPP
 
 #include "concepts.hpp"
+#include "traits/translation_traits.hpp"
 
 #include <stdexcept>
 

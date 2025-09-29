@@ -2,6 +2,8 @@
 #define MOORE_MACHINE_HPP
 
 #include "base_state_machine.hpp"
+#include "default_translator.hpp"
+#include "traits/translation_traits.hpp"
 
 #include <utility>
 

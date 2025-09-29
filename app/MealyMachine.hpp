@@ -3,7 +3,7 @@
 
 #include "base_state_machine.hpp"
 #include "default_translator.hpp"
-#include "translation_traits.hpp"
+#include "traits/translation_traits.hpp"
 
 #include <set>
 #include <utility>

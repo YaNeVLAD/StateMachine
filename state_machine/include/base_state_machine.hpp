@@ -2,7 +2,7 @@
 #define STATE_MACHINE_HPP
 
 #include "concepts.hpp"
-#include "state_machine_traits.hpp"
+#include "traits/state_machine_traits.hpp"
 
 /// Что общего у конечных автоматов?
 /// X - множество входных значений,

@@ -3,7 +3,7 @@
 
 namespace fsm
 {
-template <typename T_From, std::convertible_to<T_From> T_To>
+template <typename T_From, typename T_To>
 struct converter
 {
 	[[nodiscard]] T_To operator()(T_From const& from) const

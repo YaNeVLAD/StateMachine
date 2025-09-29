@@ -3,7 +3,7 @@ add_library(state_machine STATIC
 
         include/base_state_machine.hpp
         include/concepts.hpp
-        include/state_machine_traits.hpp
+        include/traits/state_machine_traits.hpp
         include/converter.hpp
         include/default_translator.hpp
 )
