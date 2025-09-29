@@ -1,7 +1,4 @@
-#include <fstream>
 #include <iostream>
-#include <regex>
-#include <string>
 
 #include "converters/MealyToMoore.hpp"
 #include "converters/MooreToMealy.hpp"

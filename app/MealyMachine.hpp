@@ -5,7 +5,9 @@
 #include "default_translator.hpp"
 #include "traits/translation_traits.hpp"
 
+#include <map>
 #include <set>
+#include <string>
 #include <utility>
 
 struct MealyState

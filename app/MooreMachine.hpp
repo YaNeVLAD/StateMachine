@@ -5,6 +5,8 @@
 #include "default_translator.hpp"
 #include "traits/translation_traits.hpp"
 
+#include <map>
+#include <string>
 #include <utility>
 
 class MooreMachine;
