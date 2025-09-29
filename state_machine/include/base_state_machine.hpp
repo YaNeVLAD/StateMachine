@@ -1,7 +1,7 @@
 #ifndef STATE_MACHINE_HPP
 #define STATE_MACHINE_HPP
 
-#include "state_machine_concept.hpp"
+#include "concepts.hpp"
 #include "state_machine_traits.hpp"
 
 /// Что общего у конечных автоматов?

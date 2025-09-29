@@ -29,7 +29,27 @@ struct fsm::state_machine_traits<MooreMachine>
 	using output_type = MooreState::Output;
 };
 
-class MooreMachine : public fsm::base_state_machine<MooreMachine>
+template <>
+struct fsm::translation_traits<MooreMachine>
+{
+	using find_type = MooreState::Transitions::const_iterator;
+	using container_type = MooreState::Transitions;
+	using result_type = MooreState::Transitions::mapped_type;
+
+	static find_type find(MooreState const& state, MooreState::Input const& input)
+	{
+		return state.transitions.find({ state.current_state, input });
+	}
+
+	static bool is_valid(find_type const& find_result, MooreState const& state)
+	{
+		return find_result != state.transitions.end();
+	}
+};
+
+class MooreMachine
+	: public fsm::base_state_machine<MooreMachine>
+	, public fsm::default_translator<MooreMachine>
 {
 	using Base = base_state_machine;
 	using State = MooreState::State;
@@ -39,22 +59,9 @@ class MooreMachine : public fsm::base_state_machine<MooreMachine>
 public:
 	using TransitionResult = State;
 
-	explicit MooreMachine(const MooreState& initialState)
+	explicit MooreMachine(MooreState const& initialState)
 		: Base(initialState)
 	{
-	}
-
-	static TransitionResult translate(const Input& input, const MooreState& state)
-	{
-		const auto& transitions = state.transitions;
-		const auto it = transitions.find({ state.current_state, input });
-
-		if (it == transitions.end())
-		{
-			throw std::runtime_error("Undefined transition for state '" + state.current_state + "' with input '" + input + "'");
-		}
-
-		return it->second;
 	}
 
 	[[nodiscard]] Output output_from(TransitionResult const& result) const

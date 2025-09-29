@@ -2,17 +2,18 @@
 #define MEALY_MACHINE_HPP
 
 #include "base_state_machine.hpp"
+#include "default_translator.hpp"
+#include "translation_traits.hpp"
 
-#include <functional>
 #include <set>
 #include <utility>
 
 struct MealyState
 {
-	using State = std::string;
+	using StateId = std::string;
 	using Input = std::string;
 	using Output = std::string;
-	using Transitions = std::map<std::pair<State, Input>, std::pair<State, Output>>;
+	using Transitions = std::map<std::pair<StateId, Input>, std::pair<StateId, Output>>;
 
 	Transitions transitions;
 	std::set<std::string> states;
@@ -30,35 +31,44 @@ struct fsm::state_machine_traits<MealyMachine>
 	using output_type = MealyState::Output;
 };
 
-class MealyMachine : public fsm::base_state_machine<MealyMachine>
+template <>
+struct fsm::translation_traits<MealyMachine>
+{
+	using find_type = MealyState::Transitions::const_iterator;
+	using container_type = MealyState::Transitions;
+	using result_type = MealyState::Transitions::mapped_type;
+
+	static find_type find(MealyState const& state, MealyState::Input const& input)
+	{
+		return state.transitions.find({ state.current_state, input });
+	}
+
+	static bool is_valid(find_type const& find_result, MealyState const& state)
+	{
+		return find_result != state.transitions.end();
+	}
+};
+
+class MealyMachine
+	: public fsm::base_state_machine<MealyMachine>
+	, public fsm::default_translator<MealyMachine>
 {
 	using Base = base_state_machine;
-	using State = MealyState::State;
+	using StateId = MealyState::StateId;
 	using Input = MealyState::Input;
 	using Output = MealyState::Output;
 
 public:
-	using TransitionResult = std::pair<State, Output>;
+
+	using TransitionResult = std::pair<StateId, Output>;
 
 	explicit MealyMachine(MealyState const& initialState)
 		: Base(initialState)
+		, default_translator()
 	{
 	}
 
-	[[nodiscard]] static TransitionResult translate(Input const& input, MealyState const& state)
-	{
-		auto const& transitions = state.transitions;
-		const auto it = transitions.find({ state.current_state, input });
-
-		if (it == transitions.end())
-		{
-			throw std::runtime_error("Undefined transition for state '" + state.current_state + "' with input '" + input + "'");
-		}
-
-		return it->second;
-	}
-
-	static Output output_from(TransitionResult const& result)
+	[[nodiscard]] static Output output_from(TransitionResult const& result)
 	{
 		return result.second;
 	}
