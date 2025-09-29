@@ -8,30 +8,35 @@
 namespace fsm
 {
 
-template <concepts::translatable T_Derived>
+template <
+	concepts::translatable T_Derived,
+	typename T_MachineTraits = state_machine_traits<T_Derived>,
+	typename T_Traits = translation_traits<T_Derived>>
 class default_translator
 {
-	using machine_traits = state_machine_traits<T_Derived>;
-	using translation_traits = translation_traits<T_Derived>;
+	using machine_traits = T_MachineTraits;
+	using translation_traits = T_Traits;
 
 	using input_type = typename machine_traits::input_type;
 	using state_type = typename machine_traits::state_type;
 
-	using find_type = typename translation_traits::find_type;
-	using container_type = typename translation_traits::container_type;
+	using find_result_type = typename translation_traits::find_result_type;
 	using result_type = typename translation_traits::result_type;
 
 public:
-	[[nodiscard]] result_type translate(input_type const& input, state_type const& state)
+	[[nodiscard]] static result_type
+	translate(input_type const& input, state_type const& state) noexcept(false)
 	{
-		const find_type it = translation_traits::find(state, input);
+		using traits = translation_traits;
 
-		if (!translation_traits::is_valid(it, state))
+		const find_result_type res = traits::find(state, input);
+
+		if (!traits::is_valid(res, state))
 		{
 			throw std::runtime_error("Undefined transition for input '" + input + "'");
 		}
 
-		return it->second;
+		return traits::result(res);
 	}
 
 protected:

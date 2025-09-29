@@ -16,13 +16,14 @@
 /// Мур: F(x * Q) -> Q, R(Q) -> Y \n
 /// R - функция получения выходного сигнала из состояния
 
-
 namespace fsm
 {
-template <concepts::state_machine T_Derived>
+template <
+	concepts::state_machine T_Derived,
+	typename T_Traits = state_machine_traits<T_Derived>>
 class base_state_machine
 {
-	using traits = state_machine_traits<T_Derived>;
+	using traits = T_Traits;
 
 public:
 	using state_type = typename traits::state_type;

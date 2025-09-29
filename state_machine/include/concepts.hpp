@@ -17,16 +17,18 @@ template <typename T>
 concept translatable = requires(
 	const typename state_machine_traits<T>::state_type state,
 	const typename state_machine_traits<T>::input_type input,
-	const typename translation_traits<T>::find_type find_result) {
-	typename translation_traits<T>::find_type;
-	typename translation_traits<T>::container_type;
+	const typename translation_traits<T>::find_result_type find_result) {
+	typename translation_traits<T>::find_result_type;
 	typename translation_traits<T>::result_type;
 
 	{ translation_traits<T>::find(state, input) }
-	-> std::same_as<typename translation_traits<T>::find_type>;
+	-> std::same_as<typename translation_traits<T>::find_result_type>;
 
 	{ translation_traits<T>::is_valid(find_result, state) }
 	-> std::convertible_to<bool>;
+
+	{ translation_traits<T>::result(find_result) }
+	-> std::same_as<typename translation_traits<T>::result_type>;
 };
 
 } // namespace fsm::concepts

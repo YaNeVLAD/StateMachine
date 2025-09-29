@@ -34,18 +34,22 @@ struct fsm::state_machine_traits<MealyMachine>
 template <>
 struct fsm::translation_traits<MealyMachine>
 {
-	using find_type = MealyState::Transitions::const_iterator;
-	using container_type = MealyState::Transitions;
+	using find_result_type = MealyState::Transitions::const_iterator;
 	using result_type = MealyState::Transitions::mapped_type;
 
-	static find_type find(MealyState const& state, MealyState::Input const& input)
+	static find_result_type find(MealyState const& state, MealyState::Input const& input)
 	{
 		return state.transitions.find({ state.current_state, input });
 	}
 
-	static bool is_valid(find_type const& find_result, MealyState const& state)
+	static bool is_valid(find_result_type const& find_result, MealyState const& state)
 	{
 		return find_result != state.transitions.end();
+	}
+
+	static result_type result(find_result_type const& find_result)
+	{
+		return find_result->second;
 	}
 };
 
@@ -59,7 +63,6 @@ class MealyMachine
 	using Output = MealyState::Output;
 
 public:
-
 	using TransitionResult = std::pair<StateId, Output>;
 
 	explicit MealyMachine(MealyState const& initialState)

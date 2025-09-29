@@ -32,18 +32,22 @@ struct fsm::state_machine_traits<MooreMachine>
 template <>
 struct fsm::translation_traits<MooreMachine>
 {
-	using find_type = MooreState::Transitions::const_iterator;
-	using container_type = MooreState::Transitions;
+	using find_result_type = MooreState::Transitions::const_iterator;
 	using result_type = MooreState::Transitions::mapped_type;
 
-	static find_type find(MooreState const& state, MooreState::Input const& input)
+	static find_result_type find(MooreState const& state, MooreState::Input const& input)
 	{
 		return state.transitions.find({ state.current_state, input });
 	}
 
-	static bool is_valid(find_type const& find_result, MooreState const& state)
+	static bool is_valid(find_result_type const& find_result, MooreState const& state)
 	{
 		return find_result != state.transitions.end();
+	}
+
+	static result_type result(find_result_type const& find_result)
+	{
+		return find_result->second;
 	}
 };
 
