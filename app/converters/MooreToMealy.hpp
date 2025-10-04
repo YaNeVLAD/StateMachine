@@ -40,7 +40,7 @@ struct fsm::converter<MooreMachine, MealyMachine>
 		MealyState mealyState;
 		const auto& moore_state = moore.state();
 
-		mealyState.stateIds = moore_state.states;
+		mealyState.stateIds = moore_state.stateIds;
 		mealyState.startStateId = moore_state.startStateId;
 		mealyState.currentStateId = moore_state.startStateId;
 

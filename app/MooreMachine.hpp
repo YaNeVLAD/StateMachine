@@ -18,7 +18,7 @@ struct MooreState
 	using Output = std::string;
 	using Transitions = std::map<std::pair<StateId, Input>, StateId>;
 
-	std::set<StateId> states;
+	std::set<StateId> stateIds;
 	std::map<StateId, Output> outputs;
 	Transitions transitions;
 	StateId startStateId;
@@ -101,11 +101,11 @@ template <>
 struct fsm::minimization_traits<MooreMachine>
 {
 	using id_type = std::string;
-	using input_type = base_state_machine<MooreMachine>::input_type;
+	using input_type = MooreState::Input;
 
 	static std::vector<id_type> get_all_state_ids(MooreState const& state)
 	{
-		auto const& s = state.states;
+		auto const& s = state.stateIds;
 		return { s.begin(), s.end() };
 	}
 
@@ -145,7 +145,7 @@ struct fsm::minimization_traits<MooreMachine>
 		for (size_t i = 0; i < partition.size(); ++i)
 		{
 			const id_type newId = "s" + std::to_string(i);
-			minimalState.states.insert(newId);
+			minimalState.stateIds.insert(newId);
 
 			for (auto const& oldId : partition[i])
 			{

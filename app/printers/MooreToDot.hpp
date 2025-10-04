@@ -14,7 +14,7 @@ inline void ExportMooreMachineToDot(const MooreMachine& machine, const std::stri
 	}
 
 	file << "digraph MooreMachine {\n";
-	for (const auto& state_name : machine.state().states)
+	for (const auto& state_name : machine.state().stateIds)
 	{
 		auto it = machine.state().outputs.find(state_name);
 		if (it == machine.state().outputs.end())

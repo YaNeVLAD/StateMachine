@@ -36,7 +36,7 @@ inline void PopulateMooreStatesAndOutputs(
 	for (const auto& [mealy_state_name, mealy_output] : pairs)
 	{
 		std::string new_moore_name = ToMooreStateName(mealy_state_name, mealy_output);
-		mooreState.states.insert(new_moore_name);
+		mooreState.stateIds.insert(new_moore_name);
 		mooreState.outputs[new_moore_name] = mealy_output;
 	}
 }
@@ -44,7 +44,7 @@ inline void PopulateMooreStatesAndOutputs(
 inline std::string CreateMooreStartState(const std::string& mealy_start_state, MooreState& mooreState)
 {
 	std::string moore_start_name = mealy_start_state + "_start";
-	mooreState.states.insert(moore_start_name);
+	mooreState.stateIds.insert(moore_start_name);
 	mooreState.outputs[moore_start_name] = "INITIAL";
 
 	return moore_start_name;

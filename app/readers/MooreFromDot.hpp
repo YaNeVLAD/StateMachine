@@ -36,8 +36,8 @@ inline MooreMachine CreateMooreMachineFromDot(const std::string& filename)
 
 				state.transitions[{ from_state, input }] = to_state;
 
-				state.states.insert(from_state);
-				state.states.insert(to_state);
+				state.stateIds.insert(from_state);
+				state.stateIds.insert(to_state);
 			}
 		}
 		else if (std::regex_match(line, matches, node_regex))
@@ -48,7 +48,7 @@ inline MooreMachine CreateMooreMachineFromDot(const std::string& filename)
 				std::string output = unquote(matches[2]);
 
 				state.outputs[state_id] = output;
-				state.states.insert(state_id);
+				state.stateIds.insert(state_id);
 
 				if (state.startStateId.empty())
 				{

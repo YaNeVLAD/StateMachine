@@ -14,6 +14,8 @@
 #include <utility>
 #include <vector>
 
+class MealyMachine;
+
 struct MealyState
 {
 	using StateId = std::string;
@@ -26,8 +28,6 @@ struct MealyState
 	std::string startStateId;
 	std::string currentStateId;
 };
-
-class MealyMachine;
 
 template <>
 struct fsm::state_machine_traits<MealyMachine>
