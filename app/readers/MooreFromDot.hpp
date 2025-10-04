@@ -50,20 +50,20 @@ inline MooreMachine CreateMooreMachineFromDot(const std::string& filename)
 				state.outputs[state_id] = output;
 				state.states.insert(state_id);
 
-				if (state.start_state.empty())
+				if (state.startStateId.empty())
 				{
-					state.start_state = state_id;
+					state.startStateId = state_id;
 				}
 			}
 		}
 	}
 
-	if (state.start_state.empty())
+	if (state.startStateId.empty())
 	{
 		throw std::runtime_error("No states defined in DOT file.");
 	}
 
-	state.current_state = state.start_state;
+	state.currentStateId = state.startStateId;
 
 	return MooreMachine(state);
 }

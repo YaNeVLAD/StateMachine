@@ -6,6 +6,8 @@ add_library(state_machine STATIC
         include/traits/state_machine_traits.hpp
         include/converter.hpp
         include/default_translator.hpp
+        include/traits/minimization_traits.hpp
+        include/minimization.hpp
 )
 
 target_include_directories(state_machine PUBLIC

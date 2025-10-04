@@ -4,6 +4,8 @@
 #include "traits/state_machine_traits.hpp"
 #include "traits/translation_traits.hpp"
 
+#include <concepts>
+
 namespace fsm::concepts
 {
 template <typename D>

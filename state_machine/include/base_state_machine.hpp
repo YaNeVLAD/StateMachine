@@ -4,18 +4,6 @@
 #include "concepts.hpp"
 #include "traits/state_machine_traits.hpp"
 
-/// Что общего у конечных автоматов?
-/// X - множество входных значений,
-/// Y - множество выходных значений,
-/// Q - множество состояний,
-/// q0 - начальное состояние,
-/// F - функция переходов.
-
-/// Отличия автоматов Мили и Мура \n
-/// Мили: F(X * Q) -> Q * Y \n
-/// Мур: F(x * Q) -> Q, R(Q) -> Y \n
-/// R - функция получения выходного сигнала из состояния
-
 namespace fsm
 {
 template <
@@ -30,7 +18,7 @@ public:
 	using input_type = typename traits::input_type;
 	using output_type = typename traits::output_type;
 
-	output_type handle_input(input_type const& input)
+	output_type handle_input(input_type const& input) noexcept(false)
 	{
 		auto transition_result = derived().translate(input, m_current_state);
 
@@ -40,24 +28,31 @@ public:
 		return output;
 	}
 
-	state_type const& state() const { return m_current_state; }
+	state_type const& state() const noexcept { return m_current_state; }
 
 protected:
-	explicit base_state_machine(state_type const& initial_state)
+	explicit base_state_machine(state_type const& initial_state) noexcept(
+		std::is_nothrow_copy_constructible_v<state_type>)
 		: m_current_state(initial_state)
+	{
+	}
+
+	explicit base_state_machine(state_type&& initial_state) noexcept(
+		std::is_nothrow_move_constructible_v<state_type>)
+		: m_current_state(std::move(initial_state))
 	{
 	}
 
 	~base_state_machine() = default;
 
-	state_type& current_state() { return m_current_state; }
+	state_type& current_state() noexcept { return m_current_state; }
 
 private:
 	state_type m_current_state;
 
-	T_Derived& derived() { return static_cast<T_Derived&>(*this); }
+	T_Derived& derived() noexcept { return static_cast<T_Derived&>(*this); }
 
-	T_Derived const& derived() const
+	T_Derived const& derived() const noexcept
 	{
 		return static_cast<T_Derived const&>(*this);
 	}

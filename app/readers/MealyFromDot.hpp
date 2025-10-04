@@ -34,11 +34,11 @@ inline MealyMachine CreateMealyMachineFromDot(const std::string& filename)
 		{
 			std::string name = unquote(match[1]);
 			stateMap[name] = State(name);
-			machine.states.insert(State(name));
-			if (machine.states.size() == 1)
+			machine.stateIds.insert(State(name));
+			if (machine.stateIds.size() == 1)
 			{
-				machine.start_state = State(name);
-				machine.current_state = State(name);
+				machine.startStateId = State(name);
+				machine.currentStateId = State(name);
 			}
 		}
 		else if (std::regex_match(line, match, transitionRegex))

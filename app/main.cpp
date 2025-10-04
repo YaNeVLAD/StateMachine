@@ -1,3 +1,5 @@
+#include "minimization.hpp"
+
 #include <iostream>
 
 #include "converters/MealyToMoore.hpp"
@@ -9,8 +11,8 @@
 
 int main()
 {
-	const std::string mealy_file = "res/mealy.dot";
-	const std::string moore_file = "res/moore.dot";
+	const std::string mealy_file = "res/mealy_to_minimize.dot";
+	const std::string moore_file = "res/moore_to_minimize.dot";
 
 	try
 	{
@@ -32,6 +34,14 @@ int main()
 			std::cout << sameMealy.handle_input("x2") << std::endl;
 
 			ExportMealyMachineToDot(sameMealy, "same_mealy.dot");
+
+			auto minMealy = fsm::minimize(mealy);
+			std::cout << "Input: x1, x2, x2" << std::endl;
+			std::cout << minMealy.handle_input("x1") << std::endl;
+			std::cout << minMealy.handle_input("x2") << std::endl;
+			std::cout << minMealy.handle_input("x2") << std::endl;
+
+			ExportMealyMachineToDot(minMealy, "min_mealy.dot");
 		}
 
 		{
@@ -52,6 +62,14 @@ int main()
 			std::cout << sameMoore.handle_input("2") << std::endl;
 
 			ExportMooreMachineToDot(sameMoore, "same_moore.dot");
+
+			auto minMoore = fsm::minimize(moore);
+			std::cout << "Input: 1, 2, 2" << std::endl;
+			std::cout << minMoore.handle_input("1") << std::endl;
+			std::cout << minMoore.handle_input("2") << std::endl;
+			std::cout << minMoore.handle_input("2") << std::endl;
+
+			ExportMooreMachineToDot(minMoore, "min_moore.dot");
 		}
 	}
 	catch (std::exception const& ex)

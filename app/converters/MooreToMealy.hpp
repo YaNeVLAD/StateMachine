@@ -40,11 +40,11 @@ struct fsm::converter<MooreMachine, MealyMachine>
 		MealyState mealyState;
 		const auto& moore_state = moore.state();
 
-		mealyState.states = moore_state.states;
-		mealyState.start_state = moore_state.start_state;
-		mealyState.current_state = moore_state.start_state;
+		mealyState.stateIds = moore_state.states;
+		mealyState.startStateId = moore_state.startStateId;
+		mealyState.currentStateId = moore_state.startStateId;
 
-		mealyState.transitions = details::create_mealy_transitions(moore_state);
+		mealyState.transitions = ::details::create_mealy_transitions(moore_state);
 
 		return MealyMachine(mealyState);
 	}

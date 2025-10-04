@@ -15,7 +15,7 @@ inline void ExportMealyMachineToDot(const MealyMachine& machine, const std::stri
 	}
 
 	file << "digraph MealyMachine {\n";
-	for (const auto& state_name : machine.state().states)
+	for (const auto& state_name : machine.state().stateIds)
 	{
 		file << "    \"" << state_name << "\" [label = \"" << state_name << "\"]\n";
 	}

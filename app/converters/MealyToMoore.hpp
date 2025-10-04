@@ -59,7 +59,7 @@ inline MooreState::Transitions CreateMooreTransitions(
 
 	for (const auto& [from, to] : mealy_state.transitions)
 	{
-		if (const auto& [from_state, input] = from; from_state == mealy_state.start_state)
+		if (const auto& [from_state, input] = from; from_state == mealy_state.startStateId)
 		{
 			const auto& [to_state, output] = to;
 			moore_transitions[{ moore_start_name, input }] = ToMooreStateName(to_state, output);
@@ -93,15 +93,15 @@ struct fsm::converter<MealyMachine, MooreMachine>
 		MooreState mooreState;
 		const auto& mealy_state = mealy.state();
 
-		const auto unique_pairs = details::CollectUniqueStateOutputPairs(mealy_state.transitions);
+		const auto unique_pairs = ::details::CollectUniqueStateOutputPairs(mealy_state.transitions);
 
-		details::PopulateMooreStatesAndOutputs(unique_pairs, mooreState);
+		::details::PopulateMooreStatesAndOutputs(unique_pairs, mooreState);
 
-		mooreState.start_state = mealy_state.start_state;
+		mooreState.startStateId = mealy_state.startStateId;
 
-		mooreState.transitions = details::CreateMooreTransitions(mealy_state, unique_pairs, mooreState.start_state);
+		mooreState.transitions = ::details::CreateMooreTransitions(mealy_state, unique_pairs, mooreState.startStateId);
 
-		mooreState.current_state = mooreState.start_state;
+		mooreState.currentStateId = mooreState.startStateId;
 
 		return MooreMachine(mooreState);
 	}

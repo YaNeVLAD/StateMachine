@@ -5,6 +5,6 @@ namespace fsm
 {
 template <typename T_StateMachine>
 struct state_machine_traits;
-} // namespace fsm
+}
 
 #endif // STATE_MACHINE_TRAITS_HPP

@@ -1,0 +1,21 @@
+digraph MealyMachine {
+    rankdir = LR;
+    node [shape = circle];
+
+    "a" [label = "a"];
+    "b" [label = "b"];
+    "c" [label = "c"];
+    "d" [label = "d"];
+
+    "a" -> "b" [label = "x1 / 0"];
+    "a" -> "c" [label = "x2 / 1"];
+
+    "b" -> "d" [label = "x1 / 1"];
+    "b" -> "a" [label = "x2 / 0"];
+
+    "c" -> "d" [label = "x1 / 1"];
+    "c" -> "a" [label = "x2 / 0"];
+
+    "d" -> "a" [label = "x1 / 0"];
+    "d" -> "b" [label = "x2 / 1"];
+}
