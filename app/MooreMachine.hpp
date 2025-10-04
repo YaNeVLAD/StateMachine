@@ -1,9 +1,9 @@
 #ifndef MOORE_MACHINE_HPP
 #define MOORE_MACHINE_HPP
 
-#include "base_state_machine.hpp"
-#include "default_translator.hpp"
-#include "traits/translation_traits.hpp"
+#include <base_state_machine.hpp>
+#include <default_translator.hpp>
+#include <traits/minimization_traits.hpp>
 
 #include <map>
 #include <string>

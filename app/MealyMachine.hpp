@@ -1,10 +1,9 @@
 #ifndef MEALY_MACHINE_HPP
 #define MEALY_MACHINE_HPP
 
-#include "base_state_machine.hpp"
-#include "default_translator.hpp"
-#include "traits/minimization_traits.hpp"
-#include "traits/translation_traits.hpp"
+#include <base_state_machine.hpp>
+#include <default_translator.hpp>
+#include <traits/minimization_traits.hpp>
 
 #include <algorithm>
 #include <map>

@@ -14,34 +14,19 @@ namespace fsm::details
 {
 template <typename T_State>
 using partition = std::vector<std::set<T_State>>;
-
-template <typename T_State>
-size_t find_partition_index(
-	T_State const& state,
-	std::vector<std::set<T_State>> const& partition)
-{
-	for (size_t i = 0; i < partition.size(); ++i)
-	{
-		if (partition[i].contains(state))
-		{
-			return i;
-		}
-	}
-	return -1;
 }
-} // namespace fsm::details
 
 namespace fsm
 {
 template <concepts::state_machine T_StateMachine>
-T_StateMachine minimize(const T_StateMachine& fsm)
+T_StateMachine minimize(T_StateMachine const& machine)
 {
 	using machine_traits = state_machine_traits<T_StateMachine>;
 	using min_traits = minimization_traits<T_StateMachine>;
 	using state_type = typename machine_traits::state_type;
 	using state_id = typename min_traits::id_type;
 
-	state_type const& current_state = fsm.state();
+	state_type const& current_state = machine.state();
 
 	auto state_ids = min_traits::get_all_state_ids(current_state);
 	auto inputs = min_traits::get_all_inputs(current_state);
@@ -110,7 +95,7 @@ T_StateMachine minimize(const T_StateMachine& fsm)
 			break;
 	}
 
-	return min_traits::reconstruct_from_partition(fsm, partition);
+	return min_traits::reconstruct_from_partition(machine, partition);
 }
 } // namespace fsm
 
