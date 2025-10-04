@@ -7,7 +7,6 @@
 
 #include <map>
 #include <set>
-#include <string>
 #include <vector>
 
 namespace fsm::details
@@ -18,6 +17,23 @@ using partition = std::vector<std::set<T_State>>;
 
 namespace fsm
 {
+/**
+ * @brief Minimizes a given deterministic finite state machine.
+ *
+ * This function creates a new, minimized state machine that is behaviorally
+ * equivalent to the input machine. It implements a generic algorithm by
+ * partitioning states into equivalence classes.
+ *
+ * For this function to work, the user must provide a full specialization of the
+ * `minimization_traits` class for the `T_StateMachine` type. This traits class
+ * must define how to access the machine's structure (e.g., get all states and
+ * inputs) and how to reconstruct a new machine from the resulting partition.
+ *
+ * @tparam T_StateMachine The type of the state machine to be minimized. It must
+ * satisfy the `concepts::state_machine` concept.
+ * @param machine A constant reference to the state machine instance to minimize.
+ * @return A new state machine instance with the minimum possible number of states.
+ */
 template <concepts::state_machine T_StateMachine>
 T_StateMachine minimize(T_StateMachine const& machine)
 {
