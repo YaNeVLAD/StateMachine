@@ -139,61 +139,54 @@ struct fsm::minimization_traits<MooreMachine>
 		MooreMachine const& original,
 		std::vector<std::set<id_type>> const& partition)
 	{
-		// Создаем пустое состояние для нового, минимизированного автомата.
 		MooreState minimalState;
 
-		// 1. Создаем канонические имена ("s0", "s1", ...) и карту сопоставления.
-		std::map<id_type, id_type> old_to_new_id_map;
+		std::map<id_type, id_type> oldToNewIdMap;
 		for (size_t i = 0; i < partition.size(); ++i)
 		{
-			const id_type new_id = "s" + std::to_string(i);
-			minimalState.states.insert(new_id);
+			const id_type newId = "s" + std::to_string(i);
+			minimalState.states.insert(newId);
 
-			for (const auto& old_id : partition[i])
+			for (auto const& oldId : partition[i])
 			{
-				old_to_new_id_map[old_id] = new_id;
+				oldToNewIdMap[oldId] = newId;
 			}
 		}
 
-		// 2. Определяем новое начальное состояние.
-		const id_type& original_start_id = original.state().startStateId;
-		minimalState.startStateId = old_to_new_id_map.at(original_start_id);
+		const id_type& originalStartId = original.state().startStateId;
+		minimalState.startStateId = oldToNewIdMap.at(originalStartId);
 		minimalState.currentStateId = minimalState.startStateId;
 
-		// 3. Создаем новую карту выходов.
 		for (size_t i = 0; i < partition.size(); ++i)
 		{
-			const id_type new_id = "s" + std::to_string(i);
+			const id_type newId = "s" + std::to_string(i);
 
-			// Все состояния в классе 0-эквивалентны, значит у них одинаковый выход.
-			// Берем выход у любого состояния-представителя из класса.
-			const id_type representative_old_id = *partition[i].begin();
-			const auto& output = original.state().outputs.at(representative_old_id);
+			const id_type oldId = *partition[i].begin();
+			auto const& output = original.state().outputs.at(oldId);
 
-			minimalState.outputs[new_id] = output;
+			minimalState.outputs[newId] = output;
 		}
 
-		// 4. Создаем новые переходы.
-		const auto all_inputs = get_all_inputs(original.state());
+		const auto inputs = get_all_inputs(original.state());
 		for (size_t i = 0; i < partition.size(); ++i)
 		{
-			const id_type new_from_id = "s" + std::to_string(i);
-			const id_type representative_old_id = *partition[i].begin();
+			const id_type newId = "s" + std::to_string(i);
+			const id_type oldId = *partition[i].begin();
 
-			for (const auto& input : all_inputs)
+			for (auto const& input : inputs)
 			{
-				// Находим оригинальный переход.
-				const id_type& original_to_id = original.state().transitions.at({ representative_old_id, input });
+				const id_type& originalId
+					= original
+						  .state()
+						  .transitions
+						  .at({ oldId, input });
 
-				// Находим новое имя для состояния назначения.
-				const id_type new_to_id = old_to_new_id_map.at(original_to_id);
+				const id_type newToId = oldToNewIdMap.at(originalId);
 
-				// Добавляем новый переход (без выхода, т.к. это автомат Мура).
-				minimalState.transitions[{ new_from_id, input }] = new_to_id;
+				minimalState.transitions[{ newId, input }] = newToId;
 			}
 		}
 
-		// 5. Возвращаем новый автомат.
 		return MooreMachine(std::move(minimalState));
 	}
 };

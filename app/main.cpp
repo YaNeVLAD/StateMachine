@@ -11,65 +11,51 @@
 
 int main()
 {
-	const std::string mealy_file = "res/mealy_to_minimize.dot";
-	const std::string moore_file = "res/moore_to_minimize.dot";
+	const std::string moore_file2 = "res/moore2.dot";
+	const std::string mealy_file2 = "res/mealy2.dot";
 
 	try
 	{
 		{
-			std::cout << "Convertion test Mealy->Moore" << std::endl;
-			auto mealy = CreateMealyMachineFromDot(mealy_file);
-			std::cout << "Input: x1, x2, x2" << std::endl;
-			std::cout << mealy.handle_input("x1") << std::endl;
-			std::cout << mealy.handle_input("x2") << std::endl;
-			std::cout << mealy.handle_input("x2") << std::endl;
+			std::cout << "Minimization Test Moore" << std::endl;
+			auto moore = CreateMooreMachineFromDot(moore_file2);
+			std::cout << "Input: z1, z2, z2, z1, z2" << std::endl;
+			std::cout << moore.handle_input("z1") << std::endl;
+			std::cout << moore.handle_input("z2") << std::endl;
+			std::cout << moore.handle_input("z2") << std::endl;
+			std::cout << moore.handle_input("z1") << std::endl;
+			std::cout << moore.handle_input("z2") << std::endl;
 
-			constexpr MealyToMooreConverter converter;
-			auto moore = converter(mealy);
-			constexpr MooreToMealyConverter converter2;
-			auto sameMealy = converter2(moore);
-			std::cout << "Input: x1, x2, x2" << std::endl;
-			std::cout << sameMealy.handle_input("x1") << std::endl;
-			std::cout << sameMealy.handle_input("x2") << std::endl;
-			std::cout << sameMealy.handle_input("x2") << std::endl;
+			auto minMoore = fsm::minimize(moore);
+			std::cout << "Input: z1, z2, z2, z1, z2" << std::endl;
+			std::cout << minMoore.handle_input("z1") << std::endl;
+			std::cout << minMoore.handle_input("z2") << std::endl;
+			std::cout << minMoore.handle_input("z2") << std::endl;
+			std::cout << minMoore.handle_input("z1") << std::endl;
+			std::cout << minMoore.handle_input("z2") << std::endl;
 
-			ExportMealyMachineToDot(sameMealy, "same_mealy.dot");
-
-			auto minMealy = fsm::minimize(mealy);
-			std::cout << "Input: x1, x2, x2" << std::endl;
-			std::cout << minMealy.handle_input("x1") << std::endl;
-			std::cout << minMealy.handle_input("x2") << std::endl;
-			std::cout << minMealy.handle_input("x2") << std::endl;
-
-			ExportMealyMachineToDot(minMealy, "min_mealy.dot");
+			ExportMooreMachineToDot(minMoore, "min_moore2.dot");
 		}
 
 		{
-			std::cout << "Convertion test Moore->Mealy" << std::endl;
-			auto moore = CreateMooreMachineFromDot(moore_file);
-			std::cout << "Input: 1, 2, 2" << std::endl;
-			std::cout << moore.handle_input("1") << std::endl;
-			std::cout << moore.handle_input("2") << std::endl;
-			std::cout << moore.handle_input("2") << std::endl;
+			std::cout << "Minimization Test Mealy" << std::endl;
+			auto mealy = CreateMealyMachineFromDot(mealy_file2);
+			std::cout << "Input: z1, z2, z2, z1, z2" << std::endl;
+			std::cout << mealy.handle_input("z1") << std::endl;
+			std::cout << mealy.handle_input("z2") << std::endl;
+			std::cout << mealy.handle_input("z2") << std::endl;
+			std::cout << mealy.handle_input("z1") << std::endl;
+			std::cout << mealy.handle_input("z2") << std::endl;
 
-			constexpr MooreToMealyConverter converter;
-			auto mealy = converter(moore);
-			constexpr MealyToMooreConverter converter2;
-			auto sameMoore = converter2(mealy);
-			std::cout << "Input: 1, 2, 2" << std::endl;
-			std::cout << sameMoore.handle_input("1") << std::endl;
-			std::cout << sameMoore.handle_input("2") << std::endl;
-			std::cout << sameMoore.handle_input("2") << std::endl;
+			auto minMealy = fsm::minimize(mealy);
+			std::cout << "Input: z1, z2, z2, z1, z2" << std::endl;
+			std::cout << minMealy.handle_input("z1") << std::endl;
+			std::cout << minMealy.handle_input("z2") << std::endl;
+			std::cout << minMealy.handle_input("z2") << std::endl;
+			std::cout << minMealy.handle_input("z1") << std::endl;
+			std::cout << minMealy.handle_input("z2") << std::endl;
 
-			ExportMooreMachineToDot(sameMoore, "same_moore.dot");
-
-			auto minMoore = fsm::minimize(moore);
-			std::cout << "Input: 1, 2, 2" << std::endl;
-			std::cout << minMoore.handle_input("1") << std::endl;
-			std::cout << minMoore.handle_input("2") << std::endl;
-			std::cout << minMoore.handle_input("2") << std::endl;
-
-			ExportMooreMachineToDot(minMoore, "min_moore.dot");
+			ExportMealyMachineToDot(minMealy, "min_mealy2.dot");
 		}
 	}
 	catch (std::exception const& ex)

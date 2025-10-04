@@ -1,0 +1,53 @@
+digraph MooreMachine {
+    rankdir = LR;
+    node [shape = circle];
+
+    "q1" [label = "q1 / y1"];
+    "q2" [label = "q2 / y1"];
+    "q3" [label = "q3 / y3"];
+    "q4" [label = "q4 / y3"];
+    "q5" [label = "q5 / y3"];
+    "q6" [label = "q6 / y2"];
+    "q7" [label = "q7 / y3"];
+    "q8" [label = "q8 / y1"];
+    "q9" [label = "q9 / y2"];
+    "q10" [label = "q10 / y2"];
+    "q11" [label = "q11 / y2"];
+    "q12" [label = "q12 / y2"];
+
+    "q1" -> "q10" [label = "z1"];
+    "q1" -> "q5" [label = "z2"];
+
+    "q2" -> "q12" [label = "z1"];
+    "q2" -> "q7" [label = "z2"];
+
+    "q3" -> "q5" [label = "z1"];
+    "q3" -> "q6" [label = "z2"];
+
+    "q4" -> "q7" [label = "z1"];
+    "q4" -> "q11" [label = "z2"];
+
+    "q5" -> "q3" [label = "z1"];
+    "q5" -> "q9" [label = "z2"];
+
+    "q6" -> "q7" [label = "z1"];
+    "q6" -> "q11" [label = "z2"];
+
+    "q7" -> "q3" [label = "z1"];
+    "q7" -> "q6" [label = "z2"];
+
+    "q8" -> "q10" [label = "z1"];
+    "q8" -> "q4" [label = "z2"];
+
+    "q9" -> "q7" [label = "z1"];
+    "q9" -> "q6" [label = "z2"];
+
+    "q10" -> "q1" [label = "z1"];
+    "q10" -> "q8" [label = "z2"];
+
+    "q11" -> "q5" [label = "z1"];
+    "q11" -> "q9" [label = "z2"];
+
+    "q12" -> "q2" [label = "z1"];
+    "q12" -> "q8" [label = "z2"];
+}
