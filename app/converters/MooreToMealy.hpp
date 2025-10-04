@@ -1,16 +1,16 @@
 #ifndef MOORE_TO_MEALY_HPP
 #define MOORE_TO_MEALY_HPP
 
-#include "../MealyMachine.hpp"
-#include "../MooreMachine.hpp"
-#include "converter.hpp"
+#include <converter.hpp>
+#include <mealy/mealy_machine.hpp>
+#include <moore/moore_machine.hpp>
 #include <stdexcept>
 
 namespace details
 {
-inline MealyState::Transitions create_mealy_transitions(const MooreState& moore_state)
+inline mealy_state::transitions_t create_mealy_transitions(const moore_state& moore_state)
 {
-	MealyState::Transitions mealy_transitions;
+	mealy_state::transitions_t mealy_transitions;
 
 	for (const auto& moore_transition : moore_state.transitions)
 	{
@@ -30,23 +30,23 @@ inline MealyState::Transitions create_mealy_transitions(const MooreState& moore_
 }
 } // namespace details
 
-using MooreToMealyConverter = fsm::converter<MooreMachine, MealyMachine>;
+using MooreToMealyConverter = fsm::converter<fsm::moore_machine, fsm::mealy_machine>;
 
 template <>
-struct fsm::converter<MooreMachine, MealyMachine>
+struct fsm::converter<fsm::moore_machine, fsm::mealy_machine>
 {
-	[[nodiscard]] MealyMachine operator()(const MooreMachine& moore) const
+	[[nodiscard]] mealy_machine operator()(const moore_machine& moore) const
 	{
-		MealyState mealyState;
+		mealy_state mealyState;
 		const auto& moore_state = moore.state();
 
-		mealyState.stateIds = moore_state.stateIds;
-		mealyState.startStateId = moore_state.startStateId;
-		mealyState.currentStateId = moore_state.startStateId;
+		mealyState.state_ids = moore_state.state_ids;
+		mealyState.initial_state_id = moore_state.initial_state_id;
+		mealyState.current_state_id = moore_state.initial_state_id;
 
 		mealyState.transitions = ::details::create_mealy_transitions(moore_state);
 
-		return MealyMachine(mealyState);
+		return mealy_machine(mealyState);
 	}
 };
 

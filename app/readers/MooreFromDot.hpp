@@ -5,10 +5,10 @@
 #include <regex>
 #include <string>
 
-#include "../MooreMachine.hpp"
 #include "../StringUtils.hpp"
+#include <moore/moore_machine.hpp>
 
-inline MooreMachine CreateMooreMachineFromDot(const std::string& filename)
+inline fsm::moore_machine CreateMooreMachineFromDot(const std::string& filename)
 {
 	std::ifstream file(filename);
 	if (!file.is_open())
@@ -16,7 +16,7 @@ inline MooreMachine CreateMooreMachineFromDot(const std::string& filename)
 		throw std::runtime_error("Cannot open file: " + filename);
 	}
 
-	MooreState state;
+	fsm::moore_machine::state_type state;
 
 	std::regex node_regex(R"lit(^\s*(\w+|"[^"]+")\s*\[label\s*=\s*"[^/]+/\s*([^"]*)"\]\s*;*)lit");
 	std::regex edge_regex(R"lit(^\s*(\w+|"[^"]+")\s*->\s*(\w+|"[^"]+")\s*\[label\s*=\s*"([^"]*)"\]\s*;*)lit");
@@ -36,8 +36,8 @@ inline MooreMachine CreateMooreMachineFromDot(const std::string& filename)
 
 				state.transitions[{ from_state, input }] = to_state;
 
-				state.stateIds.insert(from_state);
-				state.stateIds.insert(to_state);
+				state.state_ids.insert(from_state);
+				state.state_ids.insert(to_state);
 			}
 		}
 		else if (std::regex_match(line, matches, node_regex))
@@ -48,24 +48,24 @@ inline MooreMachine CreateMooreMachineFromDot(const std::string& filename)
 				std::string output = unquote(matches[2]);
 
 				state.outputs[state_id] = output;
-				state.stateIds.insert(state_id);
+				state.state_ids.insert(state_id);
 
-				if (state.startStateId.empty())
+				if (state.initial_state_id.empty())
 				{
-					state.startStateId = state_id;
+					state.initial_state_id = state_id;
 				}
 			}
 		}
 	}
 
-	if (state.startStateId.empty())
+	if (state.initial_state_id.empty())
 	{
 		throw std::runtime_error("No states defined in DOT file.");
 	}
 
-	state.currentStateId = state.startStateId;
+	state.current_state_id = state.initial_state_id;
 
-	return MooreMachine(state);
+	return fsm::moore_machine(state);
 }
 
 #endif // MOORE_FROM_DOT_HPP

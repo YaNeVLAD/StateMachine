@@ -5,14 +5,12 @@
 #include <regex>
 #include <string>
 
-#include "../MealyMachine.hpp"
 #include "../StringUtils.hpp"
+#include <mealy/mealy_machine.hpp>
 
-inline MealyMachine CreateMealyMachineFromDot(const std::string& filename)
+inline fsm::mealy_machine CreateMealyMachineFromDot(const std::string& filename)
 {
-	using State = std::string;
-
-	MealyState machine;
+	mealy_state machine;
 	std::ifstream file(filename);
 	if (!file.is_open())
 	{
@@ -25,7 +23,7 @@ inline MealyMachine CreateMealyMachineFromDot(const std::string& filename)
 
 	std::regex labelRegex("^([^/]+)/(.+)$");
 
-	std::map<std::string, State> stateMap;
+	std::map<std::string, mealy_state::state_id> stateMap;
 
 	while (std::getline(file, line))
 	{
@@ -33,12 +31,12 @@ inline MealyMachine CreateMealyMachineFromDot(const std::string& filename)
 		if (std::smatch match; std::regex_match(line, match, stateRegex))
 		{
 			std::string name = unquote(match[1]);
-			stateMap[name] = State(name);
-			machine.stateIds.insert(State(name));
-			if (machine.stateIds.size() == 1)
+			stateMap[name] = name;
+			machine.state_ids.insert(name);
+			if (machine.state_ids.size() == 1)
 			{
-				machine.startStateId = State(name);
-				machine.currentStateId = State(name);
+				machine.initial_state_id = name;
+				machine.current_state_id = name;
 			}
 		}
 		else if (std::regex_match(line, match, transitionRegex))
@@ -52,8 +50,8 @@ inline MealyMachine CreateMealyMachineFromDot(const std::string& filename)
 				std::string input = trim(labelMatch[1]);
 				std::string output = trim(labelMatch[2]);
 
-				State srcState = stateMap[srcStateName];
-				State dstState = stateMap[dstStateName];
+				auto srcState = stateMap[srcStateName];
+				auto dstState = stateMap[dstStateName];
 
 				machine.transitions[std::make_pair(srcState, input)] = std::make_pair(dstState, output);
 			}
@@ -65,7 +63,7 @@ inline MealyMachine CreateMealyMachineFromDot(const std::string& filename)
 	}
 
 	file.close();
-	return MealyMachine(machine);
+	return fsm::mealy_machine(machine);
 }
 
 #endif // MEALY_FROM_DOT_HPP

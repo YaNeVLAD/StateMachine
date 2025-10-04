@@ -1,4 +1,5 @@
-#include "minimization.hpp"
+#include <mealy/minimization.hpp>
+#include <moore/minimization.hpp>
 
 #include <iostream>
 

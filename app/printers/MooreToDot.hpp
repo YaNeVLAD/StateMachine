@@ -3,9 +3,9 @@
 
 #include <fstream>
 
-#include "../MooreMachine.hpp"
+#include <moore/moore_machine.hpp>
 
-inline void ExportMooreMachineToDot(const MooreMachine& machine, const std::string& filename)
+inline void ExportMooreMachineToDot(const fsm::moore_machine& machine, const std::string& filename)
 {
 	std::ofstream file(filename);
 	if (!file.is_open())
@@ -14,7 +14,7 @@ inline void ExportMooreMachineToDot(const MooreMachine& machine, const std::stri
 	}
 
 	file << "digraph MooreMachine {\n";
-	for (const auto& state_name : machine.state().stateIds)
+	for (const auto& state_name : machine.state().state_ids)
 	{
 		auto it = machine.state().outputs.find(state_name);
 		if (it == machine.state().outputs.end())

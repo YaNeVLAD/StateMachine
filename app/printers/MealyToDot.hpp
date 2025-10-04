@@ -4,9 +4,9 @@
 #include <fstream>
 #include <stdexcept>
 
-#include "../MealyMachine.hpp"
+#include <mealy/mealy_machine.hpp>
 
-inline void ExportMealyMachineToDot(const MealyMachine& machine, const std::string& filename)
+inline void ExportMealyMachineToDot(const fsm::mealy_machine& machine, const std::string& filename)
 {
 	std::ofstream file(filename);
 	if (!file.is_open())
@@ -15,7 +15,7 @@ inline void ExportMealyMachineToDot(const MealyMachine& machine, const std::stri
 	}
 
 	file << "digraph MealyMachine {\n";
-	for (const auto& state_name : machine.state().stateIds)
+	for (const auto& state_name : machine.state().state_ids)
 	{
 		file << "    \"" << state_name << "\" [label = \"" << state_name << "\"]\n";
 	}

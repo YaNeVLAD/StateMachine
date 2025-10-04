@@ -1,6 +1,4 @@
 add_executable(my_app main.cpp
-        MealyMachine.hpp
-        MooreMachine.hpp
         converters/MealyToMoore.hpp
         converters/MooreToMealy.hpp
         printers/MealyToDot.hpp
