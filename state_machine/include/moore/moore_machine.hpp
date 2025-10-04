@@ -15,7 +15,18 @@
 
 namespace fsm
 {
-class moore_machine
+/**
+ * @brief An implementation of a Moore finite state machine.
+ *
+ * This class models a Moore machine, where the output is determined solely by
+ * the current state. It inherits its core FSM loop from `base_state_machine`
+ * and its transition lookup logic from `default_translator`. The machine's
+ * entire state is encapsulated within the `fsm::moore_state` struct.
+ * This class is marked as `final` as it is not designed for further user extension.
+ *
+ * @see fsm::moore_state
+ */
+class moore_machine final
 	: public base_state_machine<moore_machine>
 	, public default_translator<moore_machine>
 {
@@ -29,16 +40,25 @@ class moore_machine
 public:
 	using state_type = moore_state;
 
+	/**
+	 * @brief Constructs a moore_machine from a given state object.
+	 * @param initialState The complete initial state of the machine (by copy).
+	 */
 	explicit moore_machine(moore_state const& initialState)
 		: base(initialState)
 	{
 	}
 
+	/**
+	 * @brief Constructs a moore_machine from a given state object.
+	 * @param initialState The complete initial state of the machine (by move).
+	 */
 	explicit moore_machine(moore_state&& initialState)
 		: base(std::move(initialState))
 	{
 	}
 
+private:
 	[[nodiscard]] output output_from(translation_result const& result) const
 	{
 		const auto& outputs = state().outputs;

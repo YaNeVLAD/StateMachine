@@ -15,7 +15,20 @@
 
 namespace fsm
 {
-class mealy_machine
+/**
+ * @brief An implementation of a Mealy finite state machine.
+ *
+ * This class models a Mealy machine, where the output is determined by both the
+ * current state and the specific input. It inherits its core FSM loop from
+ * `base_state_machine` and its transition lookup logic from `default_translator`.
+ *
+ * The machine's entire state, including all possible transitions, is encapsulated
+ * within the `fsm::mealy_state` struct. This class is marked as `final` as it is
+ * not designed for further user extension.
+ *
+ * @see fsm::mealy_state
+ */
+class mealy_machine final
 	: public base_state_machine<mealy_machine>
 	, public default_translator<mealy_machine>
 {
@@ -29,12 +42,20 @@ class mealy_machine
 public:
 	using state_type = mealy_state;
 
+	/**
+	 * @brief Constructs a mealy_machine from a given state object.
+	 * @param initial_state The complete initial state of the machine (by copy).
+	 */
 	explicit mealy_machine(mealy_state const& initial_state)
 		: base(initial_state)
 		, default_translator()
 	{
 	}
 
+	/**
+	 * @brief Constructs a mealy_machine from a given state object.
+	 * @param initial_state The complete initial state of the machine (by move).
+	 */
 	explicit mealy_machine(mealy_state&& initial_state)
 		: base(std::move(initial_state))
 		, default_translator()
