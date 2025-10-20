@@ -39,23 +39,37 @@ T_StateMachine minimize(T_StateMachine const& machine)
 {
 	using machine_traits = state_machine_traits<T_StateMachine>;
 	using min_traits = minimization_traits<T_StateMachine>;
+
 	using state_type = typename machine_traits::state_type;
 	using state_id = typename min_traits::id_type;
+	using input_type = typename min_traits::input_type;
 
 	state_type const& current_state = machine.state();
-
 	auto state_ids = min_traits::get_all_state_ids(current_state);
 	auto inputs = min_traits::get_all_inputs(current_state);
 
+	std::map<input_type, std::map<state_id, std::set<state_id>>> inverse_map;
+	for (const auto& s_from : state_ids)
+	{
+		for (const auto& c : inputs)
+		{
+			auto s_next = min_traits::get_next_state_id(current_state, s_from, c);
+			inverse_map[c][s_next].insert(s_from);
+		}
+	}
+
 	details::partition<state_id> partition;
-	for (auto const& id : state_ids)
+	std::map<state_id, size_t> state_to_partition_index;
+
+	for (const auto& id : state_ids)
 	{
 		bool placed = false;
-		for (auto& part : partition)
+		for (size_t i = 0; i < partition.size(); ++i)
 		{
-			if (min_traits::are_0_equivalent(current_state, id, *part.begin()))
+			if (min_traits::are_0_equivalent(current_state, id, *partition[i].begin()))
 			{
-				part.insert(id);
+				partition[i].insert(id);
+				state_to_partition_index[id] = i;
 				placed = true;
 				break;
 			}
@@ -63,52 +77,115 @@ T_StateMachine minimize(T_StateMachine const& machine)
 		if (!placed)
 		{
 			partition.push_back({ id });
+			state_to_partition_index[id] = partition.size() - 1;
 		}
 	}
 
-	while (true)
+	std::set<size_t> worklist_set;
+
+	size_t largest_set_size = 0;
+	size_t largest_set_index = 0;
+	for (size_t i = 0; i < partition.size(); ++i)
 	{
-		bool changed = false;
-		details::partition<state_id> new_partition;
-		std::map<state_id, size_t> state_to_partition_map;
-
-		for (size_t i = 0; i < partition.size(); ++i)
+		if (partition[i].size() > largest_set_size)
 		{
-			for (auto const& state : partition[i])
-			{
-				state_to_partition_map[state] = i;
-			}
+			largest_set_size = partition[i].size();
+			largest_set_index = i;
 		}
-
-		std::map<std::vector<size_t>, std::set<state_id>> refinement_groups;
-
-		for (auto const& part : partition)
+	}
+	for (size_t i = 0; i < partition.size(); ++i)
+	{
+		if (i != largest_set_index)
 		{
-			for (auto const& id : part)
+			worklist_set.insert(i);
+		}
+	}
+
+	while (!worklist_set.empty())
+	{
+		size_t splitter_index = *worklist_set.begin();
+		worklist_set.erase(worklist_set.begin());
+
+		const auto& splitter_A = partition[splitter_index];
+
+		for (const auto& c : inputs)
+		{
+			std::set<state_id> pre_A_c;
+			for (const auto& s_in_A : splitter_A)
 			{
-				std::vector<size_t> signature;
-				for (auto const& input : inputs)
+				if (inverse_map.count(c) && inverse_map.at(c).count(s_in_A))
 				{
-					auto next_state = min_traits::get_next_state_id(current_state, id, input);
-					signature.push_back(state_to_partition_map.at(next_state));
+					const auto& sources = inverse_map.at(c).at(s_in_A);
+					pre_A_c.insert(sources.begin(), sources.end());
 				}
-				refinement_groups[signature].insert(id);
+			}
+
+			if (pre_A_c.empty())
+				continue;
+
+			std::vector<size_t> current_indices;
+			for (size_t i = 0; i < partition.size(); ++i)
+				current_indices.push_back(i);
+
+			for (size_t i : current_indices)
+			{
+				if (i >= partition.size())
+				{
+					continue;
+				}
+
+				auto& R = partition[i];
+
+				std::set<state_id> R1;
+				std::set<state_id> R2;
+
+				for (const auto& s_in_R : R)
+				{
+					if (pre_A_c.contains(s_in_R))
+					{
+						R1.insert(s_in_R);
+					}
+					else
+					{
+						R2.insert(s_in_R);
+					}
+				}
+
+				if (!R1.empty() && !R2.empty())
+				{
+					partition[i] = R1;
+					partition.push_back(R2);
+					size_t R2_index = partition.size() - 1;
+
+					for (const auto& s : R1)
+					{
+						state_to_partition_index[s] = i;
+					}
+					for (const auto& s : R2)
+					{
+						state_to_partition_index[s] = R2_index;
+					}
+
+					if (worklist_set.contains(i))
+					{
+						worklist_set.erase(i);
+						worklist_set.insert(i);
+						worklist_set.insert(R2_index);
+					}
+					else
+					{
+						if (R1.size() <= R2.size())
+						{
+							worklist_set.insert(i);
+						}
+						else
+						{
+							worklist_set.insert(R2_index);
+						}
+					}
+				}
 			}
 		}
-
-		for (auto const& pair : refinement_groups)
-		{
-			new_partition.push_back(pair.second);
-		}
-
-		if (new_partition.size() > partition.size())
-		{
-			partition = new_partition;
-			changed = true;
-		}
-
-		if (!changed)
-			break;
 	}
 
 	return min_traits::reconstruct_from_partition(machine, partition);

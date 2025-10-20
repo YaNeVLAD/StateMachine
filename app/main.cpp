@@ -3,8 +3,6 @@
 
 #include <iostream>
 
-#include "converters/MealyToMoore.hpp"
-#include "converters/MooreToMealy.hpp"
 #include "printers/MealyToDot.hpp"
 #include "printers/MooreToDot.hpp"
 #include "readers/MealyFromDot.hpp"
@@ -20,18 +18,24 @@ int main()
 		{
 			std::cout << "Minimization Test Moore" << std::endl;
 			auto moore = CreateMooreMachineFromDot(moore_file2);
-			std::cout << "Input: z1, z2, z2, z1, z2" << std::endl;
+			std::cout << "Input: z1, z2, z2, z1, z2, z1, z1, z2" << std::endl;
 			std::cout << moore.handle_input("z1") << std::endl;
 			std::cout << moore.handle_input("z2") << std::endl;
 			std::cout << moore.handle_input("z2") << std::endl;
+			std::cout << moore.handle_input("z1") << std::endl;
+			std::cout << moore.handle_input("z2") << std::endl;
+			std::cout << moore.handle_input("z1") << std::endl;
 			std::cout << moore.handle_input("z1") << std::endl;
 			std::cout << moore.handle_input("z2") << std::endl;
 
 			auto minMoore = fsm::minimize(moore);
-			std::cout << "Input: z1, z2, z2, z1, z2" << std::endl;
+			std::cout << "Input: z1, z2, z2, z1, z2, z1, z1, z2" << std::endl;
 			std::cout << minMoore.handle_input("z1") << std::endl;
 			std::cout << minMoore.handle_input("z2") << std::endl;
 			std::cout << minMoore.handle_input("z2") << std::endl;
+			std::cout << minMoore.handle_input("z1") << std::endl;
+			std::cout << minMoore.handle_input("z2") << std::endl;
+			std::cout << minMoore.handle_input("z1") << std::endl;
 			std::cout << minMoore.handle_input("z1") << std::endl;
 			std::cout << minMoore.handle_input("z2") << std::endl;
 
@@ -41,18 +45,24 @@ int main()
 		{
 			std::cout << "Minimization Test Mealy" << std::endl;
 			auto mealy = CreateMealyMachineFromDot(mealy_file2);
-			std::cout << "Input: z1, z2, z2, z1, z2" << std::endl;
+			std::cout << "Input: z1, z2, z2, z1, z2, z1, z1, z2" << std::endl;
 			std::cout << mealy.handle_input("z1") << std::endl;
 			std::cout << mealy.handle_input("z2") << std::endl;
 			std::cout << mealy.handle_input("z2") << std::endl;
+			std::cout << mealy.handle_input("z1") << std::endl;
+			std::cout << mealy.handle_input("z2") << std::endl;
+			std::cout << mealy.handle_input("z1") << std::endl;
 			std::cout << mealy.handle_input("z1") << std::endl;
 			std::cout << mealy.handle_input("z2") << std::endl;
 
 			auto minMealy = fsm::minimize(mealy);
-			std::cout << "Input: z1, z2, z2, z1, z2" << std::endl;
+			std::cout << "Input: z1, z2, z2, z1, z2, z1, z1, z2" << std::endl;
 			std::cout << minMealy.handle_input("z1") << std::endl;
 			std::cout << minMealy.handle_input("z2") << std::endl;
 			std::cout << minMealy.handle_input("z2") << std::endl;
+			std::cout << minMealy.handle_input("z1") << std::endl;
+			std::cout << minMealy.handle_input("z2") << std::endl;
+			std::cout << minMealy.handle_input("z1") << std::endl;
 			std::cout << minMealy.handle_input("z1") << std::endl;
 			std::cout << minMealy.handle_input("z2") << std::endl;
 
