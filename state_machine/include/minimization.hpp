@@ -9,12 +9,6 @@
 #include <set>
 #include <vector>
 
-namespace fsm::details
-{
-template <typename T_State>
-using partition = std::vector<std::set<T_State>>;
-}
-
 namespace fsm
 {
 /**
@@ -43,6 +37,7 @@ T_StateMachine minimize(T_StateMachine const& machine)
 	using state_type = typename machine_traits::state_type;
 	using state_id = typename min_traits::id_type;
 	using input_type = typename min_traits::input_type;
+	using partition_t = std::vector<std::set<state_id>>;
 
 	state_type const& current_state = machine.state();
 	auto state_ids = min_traits::get_all_state_ids(current_state);
@@ -58,7 +53,7 @@ T_StateMachine minimize(T_StateMachine const& machine)
 		}
 	}
 
-	details::partition<state_id> partition;
+	partition_t partition;
 	std::map<state_id, size_t> state_to_partition_index;
 
 	for (const auto& id : state_ids)
