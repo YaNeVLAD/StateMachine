@@ -10,6 +10,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "mealy_machine.hpp"
 #include "moore_machine.hpp"

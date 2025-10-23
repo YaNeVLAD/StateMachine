@@ -3,7 +3,6 @@
 
 #include <iostream>
 
-#include "../state_machine/include/recognizer.hpp"
 #include "printers/MealyToDot.hpp"
 #include "printers/MooreToDot.hpp"
 #include "readers/MealyFromDot.hpp"
