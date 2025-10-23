@@ -6,6 +6,7 @@ add_library(state_machine INTERFACE
         include/moore/moore_state.hpp
         include/moore/moore_state_machine_traits.hpp
         include/moore/moore_translation_traits.hpp
+        include/recognizer.hpp
 )
 
 target_include_directories(state_machine INTERFACE

@@ -3,6 +3,7 @@
 
 #include <iostream>
 
+#include "../state_machine/include/recognizer.hpp"
 #include "printers/MealyToDot.hpp"
 #include "printers/MooreToDot.hpp"
 #include "readers/MealyFromDot.hpp"
@@ -10,6 +11,8 @@
 
 int main()
 {
+	using namespace std::literals;
+
 	const std::string moore_file2 = "res/moore2.dot";
 	const std::string mealy_file2 = "res/mealy2.dot";
 

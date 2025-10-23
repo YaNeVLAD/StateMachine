@@ -9,9 +9,9 @@
 #include <base_state_machine.hpp>
 #include <default_translator.hpp>
 
-#include "moore_state.hpp"
-#include "moore_state_machine_traits.hpp"
-#include "moore_translation_traits.hpp"
+#include "moore/moore_state.hpp"
+#include "moore/moore_state_machine_traits.hpp"
+#include "moore/moore_translation_traits.hpp"
 
 namespace fsm
 {
@@ -42,19 +42,21 @@ public:
 
 	/**
 	 * @brief Constructs a moore_machine from a given state object.
-	 * @param initialState The complete initial state of the machine (by copy).
+	 * @param initial_state The complete initial state of the machine (by copy).
 	 */
-	explicit moore_machine(moore_state const& initialState)
-		: base(initialState)
+	explicit moore_machine(moore_state const& initial_state)
+		: base(initial_state)
+		, default_translator()
 	{
 	}
 
 	/**
 	 * @brief Constructs a moore_machine from a given state object.
-	 * @param initialState The complete initial state of the machine (by move).
+	 * @param initial_state The complete initial state of the machine (by move).
 	 */
-	explicit moore_machine(moore_state&& initialState)
-		: base(std::move(initialState))
+	explicit moore_machine(moore_state&& initial_state)
+		: base(std::move(initial_state))
+		, default_translator()
 	{
 	}
 

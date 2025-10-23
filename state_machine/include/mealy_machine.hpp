@@ -9,9 +9,9 @@
 #include <base_state_machine.hpp>
 #include <default_translator.hpp>
 
-#include "mealy_state.hpp"
-#include "mealy_state_machine_traits.hpp"
-#include "mealy_translation_traits.hpp"
+#include "mealy/mealy_state.hpp"
+#include "mealy/mealy_state_machine_traits.hpp"
+#include "mealy/mealy_translation_traits.hpp"
 
 namespace fsm
 {

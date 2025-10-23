@@ -12,7 +12,7 @@
 #include <minimization.hpp>
 #include <traits/minimization_traits.hpp>
 
-#include "moore_machine.hpp"
+#include <moore_machine.hpp>
 
 template <>
 struct fsm::minimization_traits<fsm::moore_machine>

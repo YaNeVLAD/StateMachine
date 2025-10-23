@@ -1,9 +1,9 @@
 #ifndef MOORE_TO_MEALY_HPP
 #define MOORE_TO_MEALY_HPP
 
+#include <../../state_machine/include/mealy_machine.hpp>
+#include <../../state_machine/include/moore_machine.hpp>
 #include <converter.hpp>
-#include <mealy/mealy_machine.hpp>
-#include <moore/moore_machine.hpp>
 #include <stdexcept>
 
 namespace details

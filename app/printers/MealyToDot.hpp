@@ -4,7 +4,7 @@
 #include <fstream>
 #include <stdexcept>
 
-#include <mealy/mealy_machine.hpp>
+#include <../../state_machine/include/mealy_machine.hpp>
 
 inline void ExportMealyMachineToDot(const fsm::mealy_machine& machine, const std::string& filename)
 {

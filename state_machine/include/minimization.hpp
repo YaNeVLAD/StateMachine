@@ -101,7 +101,7 @@ T_StateMachine minimize(T_StateMachine const& machine)
 		size_t splitter_index = *worklist_set.begin();
 		worklist_set.erase(worklist_set.begin());
 
-		const auto& splitter_A = partition[splitter_index];
+		auto splitter_A = partition[splitter_index];
 
 		for (const auto& c : inputs)
 		{

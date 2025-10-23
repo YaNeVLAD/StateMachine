@@ -12,7 +12,7 @@
 #include <minimization.hpp>
 #include <traits/minimization_traits.hpp>
 
-#include "mealy_machine.hpp"
+#include <mealy_machine.hpp>
 
 template <>
 struct fsm::minimization_traits<fsm::mealy_machine>
