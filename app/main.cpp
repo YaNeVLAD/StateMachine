@@ -1,3 +1,5 @@
+#include "recognizer.hpp"
+
 #include <mealy/minimization.hpp>
 #include <moore/minimization.hpp>
 
@@ -14,6 +16,7 @@ int main()
 
 	const std::string moore_file2 = "res/moore2.dot";
 	const std::string mealy_file2 = "res/mealy2.dot";
+	const std::string recognizer_file = "res/recognizer.dot";
 
 	try
 	{
@@ -69,6 +72,16 @@ int main()
 			std::cout << minMealy.handle_input("z2") << std::endl;
 
 			ExportMealyMachineToDot(minMealy, "min_mealy2.dot");
+		}
+
+		{
+			std::cout << "Recognizer test" << std::endl;
+			auto recognizer = fsm::recognizer::from_dot(recognizer_file);
+			std::cout << "is_deterministic " << std::boolalpha << recognizer.is_deterministic() << std::endl;
+			auto dr = fsm::determinize(recognizer);
+			auto mdr = fsm::minimize(dr);
+
+			fsm::details::export_recognizer_to_dot(mdr.state(), "out_recognizer.dot");
 		}
 	}
 	catch (std::exception const& ex)

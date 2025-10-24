@@ -4,6 +4,8 @@
 #include "concepts.hpp"
 #include "traits/state_machine_traits.hpp"
 
+#include <utility>
+
 namespace fsm
 {
 /**
