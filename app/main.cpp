@@ -81,7 +81,7 @@ int main()
 			auto dr = fsm::determinize(recognizer);
 			auto mdr = fsm::minimize(dr);
 
-			fsm::details::export_recognizer_to_dot(mdr.state(), "out_recognizer.dot");
+			mdr.to_dot("out_recognizer.dot");
 		}
 	}
 	catch (std::exception const& ex)

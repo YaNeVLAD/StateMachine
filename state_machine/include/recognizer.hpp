@@ -341,6 +341,11 @@ public:
 		return recognizer{ std::move(details::create_recognizer_from_dot(filename)) };
 	}
 
+	void to_dot(std::string const& filename)
+	{
+		details::export_recognizer_to_dot(current_state(), filename);
+	}
+
 private:
 	[[nodiscard]] output_type output_from(translation_result const& translation_result) const
 	{
