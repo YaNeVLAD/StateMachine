@@ -140,8 +140,7 @@ inline void export_recognizer_to_dot(const recognizer_state& state, const std::s
 	file << "    rankdir=LR;\n\n";
 
 	file << "    // Start state pointer\n";
-	file << "    start [shape=point, style=invis];\n";
-	file << "    start -> " << quote(state.initial_state_id) << ";\n\n";
+	file << "    " << quote(state.initial_state_id) << ";\n\n";
 
 	file << "    // States\n";
 	for (const auto& id : state.state_ids)
@@ -323,7 +322,7 @@ public:
 		return result;
 	}
 
-	template <typename... Args>
+	template <std::convertible_to<input_type>... Args>
 	output_type handle_input(Args&&... inputs)
 	{
 		(base::handle_input(inputs), ...);
