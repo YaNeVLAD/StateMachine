@@ -272,7 +272,7 @@ inline recognizer_state create_recognizer_from_dot(const std::string& filename)
 }
 } // namespace details
 
-class recognizer
+class recognizer final
 	: public base_state_machine<recognizer>
 	, public default_translator<recognizer>
 {
@@ -432,7 +432,7 @@ struct minimization_traits<recognizer>
 		for (size_t i = 0; i < partition.size(); ++i)
 		{
 			const id_type newId = "s" + std::to_string(i);
-			const id_type oldId = *partition[i].begin(); // Представитель класса
+			const id_type oldId = *partition[i].begin();
 
 			if (original.state().final_state_ids.contains(oldId))
 			{
