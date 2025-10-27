@@ -33,6 +33,12 @@ concept translatable = requires(
 	-> std::same_as<typename translation_traits<T>::result_type>;
 };
 
+template <typename T>
+concept container = requires(T container) {
+	container.begin();
+	container.end();
+};
+
 } // namespace fsm::concepts
 
 #endif // STATE_MACHINE_CONCEPT_HPP

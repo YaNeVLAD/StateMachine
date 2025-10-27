@@ -311,7 +311,8 @@ public:
 	{
 	}
 
-	output_type handle_input(std::vector<input_type> const& inputs)
+	template <concepts::container T_Container>
+	output_type handle_input(T_Container&& inputs)
 	{
 		bool result = false;
 		for (auto const& input : inputs)
@@ -602,16 +603,16 @@ inline recognizer determinize(recognizer const& recognizer)
 
 namespace details
 {
-template <typename Action>
+template <typename T_Action>
 state_machine_traits<recognizer>::output_type
-recognize_internal(fsm::recognizer& recognizer, Action&& action)
+recognize_internal(fsm::recognizer& recognizer, T_Action&& action)
 {
 	auto saved_state = recognizer.state();
 	auto result = state_machine_traits<fsm::recognizer>::output_type{};
 
 	try
 	{
-		result = std::forward<Action>(action)();
+		result = std::forward<T_Action>(action)();
 	}
 	catch (...)
 	{
@@ -623,17 +624,18 @@ recognize_internal(fsm::recognizer& recognizer, Action&& action)
 }
 } // namespace details
 
-template <std::convertible_to<state_machine_traits<recognizer>::output_type>... Args>
+template <std::convertible_to<state_machine_traits<recognizer>::output_type>... T_Args>
 state_machine_traits<recognizer>::output_type
-recognize(fsm::recognizer& recognizer, Args&&... args)
+recognize(fsm::recognizer& recognizer, T_Args&&... args)
 {
 	return details::recognize_internal(recognizer, [&] {
-		return recognizer.handle_input(std::forward<Args>(args)...);
+		return recognizer.handle_input(std::forward<T_Args>(args)...);
 	});
 }
 
-inline state_machine_traits<recognizer>::output_type
-recognize(fsm::recognizer& recognizer, std::vector<recognizer_state::input> const& inputs)
+template <concepts::container T_Container>
+state_machine_traits<recognizer>::output_type
+recognize(fsm::recognizer& recognizer, T_Container&& inputs)
 {
 	return details::recognize_internal(recognizer, [&] {
 		return recognizer.handle_input(inputs);

@@ -1,7 +1,4 @@
-#include "recognizer.hpp"
-
-#include <mealy/minimization.hpp>
-#include <moore/minimization.hpp>
+#include <fsm.hpp>
 
 #include <iostream>
 
@@ -80,6 +77,9 @@ int main()
 			std::cout << "is_deterministic " << std::boolalpha << recognizer.is_deterministic() << std::endl;
 			auto dr = fsm::determinize(recognizer);
 			auto mdr = fsm::minimize(dr);
+
+			std::cout << std::boolalpha << fsm::recognize(mdr, "0", "0", "1") << std::endl;
+			std::cout << std::boolalpha << fsm::recognize(mdr, std::vector{ "0", "0", "0", "0" }) << std::endl;
 
 			mdr.to_dot("out_recognizer.dot");
 		}

@@ -123,3 +123,49 @@ TEST(Recognizer, Determinize)
 	auto dr = determinize(r);
 	EXPECT_TRUE(dr.is_deterministic());
 }
+
+mealy_state SimpleMealyState()
+{
+	mealy_state s;
+	s.state_ids = { "s0", "s1" };
+	s.initial_state_id = "s0";
+	s.current_state_id = "s0";
+	s.transitions.emplace(std::make_pair(std::string("s0"), std::string("a")),
+		std::make_pair(std::string("s1"), std::string("out1")));
+	s.transitions.emplace(std::make_pair(std::string("s1"), std::string("b")),
+		std::make_pair(std::string("s0"), std::string("out2")));
+	return s;
+}
+
+TEST(MealyMachine, ConstructorCopy)
+{
+	const mealy_state ms = SimpleMealyState();
+	const mealy_machine m(ms);
+	EXPECT_EQ(m.state().initial_state_id, "s0");
+	EXPECT_EQ(m.state().state_ids.size(), 2u);
+}
+
+TEST(MealyMachine, ConstructorMove)
+{
+	mealy_state ms = SimpleMealyState();
+	const mealy_machine m(std::move(ms));
+	EXPECT_EQ(m.state().initial_state_id, "s0");
+}
+
+TEST(MealyMachine, HandleInputSingleTransition)
+{
+	mealy_machine m(SimpleMealyState());
+	const auto out = m.handle_input("a");
+	EXPECT_EQ(out, "out1");
+	EXPECT_EQ(m.state().current_state_id, "s1");
+}
+
+TEST(MealyMachine, HandleInputSequence)
+{
+	mealy_machine m(SimpleMealyState());
+	const auto out1 = m.handle_input("a");
+	EXPECT_EQ(out1, "out1");
+	const auto out2 = m.handle_input("b");
+	EXPECT_EQ(out2, "out2");
+	EXPECT_EQ(m.state().current_state_id, "s0");
+}
