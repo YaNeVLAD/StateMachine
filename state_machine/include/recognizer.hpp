@@ -392,7 +392,12 @@ struct minimization_traits<recognizer>
 		id_type const& current,
 		input_type const& input)
 	{
-		return state.transitions.find({ current, input })->second;
+		auto it = state.transitions.find({ current, input });
+		if (it == state.transitions.end())
+		{
+			throw std::out_of_range("Unknown transition from " + current + "with input " + (input.has_value() ? *input : "none"));
+		}
+		return it->second;
 	}
 
 	static bool are_0_equivalent(
@@ -441,7 +446,12 @@ struct minimization_traits<recognizer>
 
 			for (auto const& input : inputs)
 			{
-				const id_type& originalNextId = original.state().transitions.find({ oldId, input })->second;
+				auto it = original.state().transitions.find({ oldId, input });
+				if (it == original.state().transitions.end())
+				{
+					continue;
+				}
+				const id_type& originalNextId = it->second;
 				std::pair p = { newId, input };
 				std::pair p2 = { p, oldToNewIdMap.at(originalNextId) };
 				minimalState.transitions.emplace(p2);

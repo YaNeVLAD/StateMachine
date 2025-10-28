@@ -48,8 +48,14 @@ T_StateMachine minimize(T_StateMachine const& machine)
 	{
 		for (const auto& c : inputs)
 		{
-			auto s_next = min_traits::get_next_state_id(current_state, s_from, c);
-			inverse_map[c][s_next].insert(s_from);
+			try
+			{
+				auto s_next = min_traits::get_next_state_id(current_state, s_from, c);
+				inverse_map[c][s_next].insert(s_from);
+			}
+			catch (const std::exception&)
+			{
+			}
 		}
 	}
 
