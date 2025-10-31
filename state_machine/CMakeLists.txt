@@ -1,25 +1,30 @@
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 add_library(state_machine INTERFACE
-        include/mealy/mealy_state.hpp
-        include/mealy/mealy_state_machine_traits.hpp
-        include/mealy/mealy_translation_traits.hpp
-        include/mealy/minimization.hpp
-        include/moore/moore_state.hpp
-        include/moore/moore_state_machine_traits.hpp
-        include/moore/moore_translation_traits.hpp
-        include/recognizer.hpp
-        include/fsm.hpp
+        mealy/mealy_state.hpp
+        mealy/mealy_state_machine_traits.hpp
+        mealy/mealy_translation_traits.hpp
+        mealy/minimization.hpp
+        moore/moore_state.hpp
+        moore/moore_state_machine_traits.hpp
+        moore/moore_translation_traits.hpp
+        recognizer.hpp
+        fsm.hpp
+        traits/dot_traits.hpp
+        recognizer.hpp
 )
 
 target_include_directories(state_machine INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_sources(state_machine INTERFACE
-        include/base_state_machine.hpp
-        include/concepts.hpp
-        include/traits/state_machine_traits.hpp
-        include/converter.hpp
-        include/default_translator.hpp
-        include/traits/minimization_traits.hpp
-        include/minimization.hpp
+        base_state_machine.hpp
+        concepts.hpp
+        traits/state_machine_traits.hpp
+        converter.hpp
+        default_translator.hpp
+        traits/minimization_traits.hpp
+        minimization.hpp
 )

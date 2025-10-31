@@ -1,26 +1,24 @@
 #ifndef RECOGNIZER_HPP
 #define RECOGNIZER_HPP
 
-#include "base_state_machine.hpp"
-#include "converter.hpp"
-#include "default_translator.hpp"
-#include "traits/minimization_traits.hpp"
-#include "traits/state_machine_traits.hpp"
-#include "traits/translation_traits.hpp"
-
-#include <map>
-#include <set>
-#include <string>
-#include <vector>
-
-#include "mealy_machine.hpp"
-#include "moore_machine.hpp"
-#include "recognizer.hpp"
+#include <base_state_machine.hpp>
+#include <converter.hpp>
+#include <default_translator.hpp>
+#include <mealy_machine.hpp>
+#include <moore_machine.hpp>
+#include <recognizer.hpp>
+#include <traits/minimization_traits.hpp>
+#include <traits/state_machine_traits.hpp>
+#include <traits/translation_traits.hpp>
 
 #include <fstream>
+#include <map>
 #include <queue>
 #include <regex>
+#include <set>
 #include <sstream>
+#include <string>
+#include <vector>
 
 namespace fsm
 {
@@ -414,23 +412,24 @@ struct minimization_traits<recognizer>
 		recognizer const& original,
 		std::vector<std::set<id_type>> const& partition)
 	{
-		state_type minimalState;
-		std::map<id_type, id_type> oldToNewIdMap;
+		state_type minimal_state;
+		minimal_state.is_deterministic = original.state().is_deterministic;
+		std::map<id_type, id_type> old_to_new_id_map;
 
 		for (size_t i = 0; i < partition.size(); ++i)
 		{
-			const id_type newId = "s" + std::to_string(i);
-			minimalState.state_ids.insert(newId);
+			const id_type new_id = "s" + std::to_string(i);
+			minimal_state.state_ids.insert(new_id);
 
-			for (auto const& oldId : partition[i])
+			for (auto const& old_id : partition[i])
 			{
-				oldToNewIdMap[oldId] = newId;
+				old_to_new_id_map[old_id] = new_id;
 			}
 		}
 
-		const id_type& originalStartId = original.state().initial_state_id;
-		minimalState.initial_state_id = oldToNewIdMap.at(originalStartId);
-		minimalState.current_state_id = minimalState.initial_state_id;
+		const id_type& original_start_id = original.state().initial_state_id;
+		minimal_state.initial_state_id = old_to_new_id_map.at(original_start_id);
+		minimal_state.current_state_id = minimal_state.initial_state_id;
 
 		const auto inputs = get_all_inputs(original.state());
 
@@ -441,7 +440,7 @@ struct minimization_traits<recognizer>
 
 			if (original.state().final_state_ids.contains(oldId))
 			{
-				minimalState.final_state_ids.insert(newId);
+				minimal_state.final_state_ids.insert(newId);
 			}
 
 			for (auto const& input : inputs)
@@ -452,13 +451,13 @@ struct minimization_traits<recognizer>
 					continue;
 				}
 				const id_type& originalNextId = it->second;
-				std::pair p = { newId, input };
-				std::pair p2 = { p, oldToNewIdMap.at(originalNextId) };
-				minimalState.transitions.emplace(p2);
+				minimal_state.transitions.emplace(
+					std::pair{ newId, input },
+					old_to_new_id_map.at(originalNextId));
 			}
 		}
 
-		return recognizer(std::move(minimalState));
+		return recognizer(std::move(minimal_state));
 	}
 };
 

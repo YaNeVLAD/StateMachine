@@ -12,6 +12,7 @@
 #include <minimization.hpp>
 #include <traits/minimization_traits.hpp>
 
+#include <moore/moore_state.hpp>
 #include <moore_machine.hpp>
 
 template <>

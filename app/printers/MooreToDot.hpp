@@ -3,7 +3,7 @@
 
 #include <fstream>
 
-#include <../../state_machine/include/moore_machine.hpp>
+#include <moore_machine.hpp>
 
 inline void ExportMooreMachineToDot(const fsm::moore_machine& machine, const std::string& filename)
 {

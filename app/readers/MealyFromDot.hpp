@@ -6,7 +6,7 @@
 #include <string>
 
 #include "../StringUtils.hpp"
-#include <../../state_machine/include/mealy_machine.hpp>
+#include <mealy_machine.hpp>
 
 inline fsm::mealy_machine CreateMealyMachineFromDot(const std::string& filename)
 {

@@ -12,6 +12,7 @@
 #include <minimization.hpp>
 #include <traits/minimization_traits.hpp>
 
+#include <mealy/mealy_state.hpp>
 #include <mealy_machine.hpp>
 
 template <>

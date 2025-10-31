@@ -6,7 +6,7 @@
 #include <string>
 
 #include "../StringUtils.hpp"
-#include <../../state_machine/include/moore_machine.hpp>
+#include <moore_machine.hpp>
 
 inline fsm::moore_machine CreateMooreMachineFromDot(const std::string& filename)
 {

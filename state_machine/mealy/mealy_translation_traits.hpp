@@ -2,7 +2,7 @@
 #define MEALY_TRANSLATION_TRAITS_HPP
 
 #include "mealy_state.hpp"
-#include "traits/translation_traits.hpp"
+#include <traits/translation_traits.hpp>
 
 namespace fsm
 {

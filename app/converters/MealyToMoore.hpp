@@ -1,9 +1,9 @@
 #ifndef MEALY_TO_MOORE_HPP
 #define MEALY_TO_MOORE_HPP
 
-#include <../../state_machine/include/mealy_machine.hpp>
-#include <../../state_machine/include/moore_machine.hpp>
 #include <converter.hpp>
+#include <mealy_machine.hpp>
+#include <moore_machine.hpp>
 
 #include <ranges>
 #include <set>
