@@ -126,61 +126,6 @@ inline std::string quote(const std::string& s)
 	return "\"" + s + "\"";
 }
 
-inline void export_recognizer_to_dot(const recognizer_state& state, const std::string& filename)
-{
-	std::ofstream file(filename);
-	if (!file.is_open())
-	{
-		throw std::runtime_error("Could not open file for writing: " + filename);
-	}
-
-	file << "digraph Recognizer {\n";
-	file << "    rankdir=LR;\n\n";
-
-	file << "    // Start state pointer\n";
-	file << "    " << quote(state.initial_state_id) << ";\n\n";
-
-	file << "    // States\n";
-	for (const auto& id : state.state_ids)
-	{
-		file << "    " << quote(id) << " [";
-
-		file << "label = " << quote(id);
-
-		if (state.final_state_ids.contains(id))
-		{
-			file << ", final = true, shape = doublecircle";
-		}
-		else
-		{
-			file << ", final = false, shape = circle";
-		}
-
-		file << "];\n";
-	}
-	file << "\n";
-
-	file << "    // Transitions\n";
-	for (const auto& [state_and_input, next_state] : state.transitions)
-	{
-		const auto& [from_id, input_opt] = state_and_input;
-		const auto& to_id = next_state;
-
-		file << "    " << quote(from_id)
-			 << " -> " << quote(to_id);
-
-		if (input_opt.has_value())
-		{
-			file << " [label = " << quote(input_opt.value()) << "]";
-		}
-
-		file << ";\n";
-	}
-
-	file << "}\n";
-	file.close();
-}
-
 inline recognizer_state create_recognizer_from_dot(const std::string& filename)
 {
 	using state_id = recognizer_state::state_id;
@@ -337,11 +282,6 @@ public:
 	static recognizer from_dot(std::string const& filename)
 	{
 		return recognizer{ std::move(details::create_recognizer_from_dot(filename)) };
-	}
-
-	void to_dot(std::string const& filename)
-	{
-		details::export_recognizer_to_dot(current_state(), filename);
 	}
 
 private:

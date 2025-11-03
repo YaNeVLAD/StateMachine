@@ -13,6 +13,9 @@ add_library(state_machine INTERFACE
         fsm.hpp
         traits/dot_traits.hpp
         recognizer.hpp
+        dot.hpp
+        label.hpp
+        fixed_string.hpp
 )
 
 target_include_directories(state_machine INTERFACE
