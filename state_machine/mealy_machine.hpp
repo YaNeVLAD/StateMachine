@@ -8,6 +8,7 @@
 
 #include <base_state_machine.hpp>
 #include <default_translator.hpp>
+#include <dot.hpp>
 
 #include "mealy/mealy_state.hpp"
 #include "mealy/mealy_state_machine_traits.hpp"
@@ -74,6 +75,35 @@ private:
 		return current_state();
 	}
 };
+
+template <>
+inline void dot(std::ostream& os, mealy_machine const& machine)
+{
+	os << "digraph MealyMachine {\n";
+	os << "    rankdir = LR;\n\n";
+
+	for (auto const& state_id : machine.state().state_ids)
+	{
+		details::print_node(os, details::quote(state_id));
+	}
+	os << "\n";
+
+	for (auto const& [state_input, state_output] : machine.state().transitions)
+	{
+		auto const& [from_state, input] = state_input;
+		auto const& [to_state, output] = state_output;
+
+		auto value = std::format("{} / {}", input, output);
+
+		details::print_edge(
+			os,
+			details::quote(from_state),
+			details::quote(to_state),
+			std::optional{ details::quote(value) });
+	}
+
+	os << "}" << std::endl;
+}
 } // namespace fsm
 
 #endif // MEALY_MACHINE_HPP

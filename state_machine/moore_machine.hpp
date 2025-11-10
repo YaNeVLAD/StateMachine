@@ -8,6 +8,7 @@
 
 #include <base_state_machine.hpp>
 #include <default_translator.hpp>
+#include <dot.hpp>
 
 #include "moore/moore_state.hpp"
 #include "moore/moore_state_machine_traits.hpp"
@@ -80,6 +81,41 @@ private:
 		return current_state();
 	}
 };
+
+template <>
+inline void dot(std::ostream& os, moore_machine const& machine)
+{
+	os << "digraph MooreMachine {\n";
+	os << "    rankdir = LR;\n\n";
+
+	for (auto const& state_id : machine.state().state_ids)
+	{
+		auto it = machine.state().outputs.find(state_id);
+		if (it == machine.state().outputs.end())
+		{
+			throw std::runtime_error("Inconsistent Moore machine: No output for state " + state_id);
+		}
+		auto const& output = it->second;
+		auto label = details::quote(std::format("{} / {}", state_id, output));
+
+		details::print_node(os,
+			details::quote(state_id),
+			make_labeled<"label">(label));
+	}
+	os << "\n";
+
+	for (auto const& [state_input, to_state] : machine.state().transitions)
+	{
+		auto const& [from_state, input] = state_input;
+
+		details::print_edge(os,
+			details::quote(from_state),
+			details::quote(to_state),
+			std::optional{ details::quote(input) });
+	}
+
+	os << "}" << std::endl;
+}
 } // namespace fsm
 
 #endif // MOORE_MACHINE_HPP

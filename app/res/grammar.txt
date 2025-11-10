@@ -1,0 +1,9 @@
+TYPE: RIGHT
+NON-TERMINALS: S A
+TERMINALS: a b c
+START: S
+RULES:
+S -> aA
+A -> bA
+A -> cA
+A ->

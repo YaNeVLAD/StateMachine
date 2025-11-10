@@ -4,6 +4,7 @@
 #include <base_state_machine.hpp>
 #include <converter.hpp>
 #include <default_translator.hpp>
+#include <dot.hpp>
 #include <mealy_machine.hpp>
 #include <moore_machine.hpp>
 #include <recognizer.hpp>
@@ -112,20 +113,6 @@ struct converter<mealy_machine::state_type, recognizer_state>
 
 namespace details
 {
-inline std::string unquote(std::string str)
-{
-	if (str.length() >= 2 && str.front() == '"' && str.back() == '"')
-	{
-		return str.substr(1, str.length() - 2);
-	}
-	return str;
-}
-
-inline std::string quote(const std::string& s)
-{
-	return "\"" + s + "\"";
-}
-
 inline recognizer_state create_recognizer_from_dot(const std::string& filename)
 {
 	using state_id = recognizer_state::state_id;
@@ -184,7 +171,7 @@ inline recognizer_state create_recognizer_from_dot(const std::string& filename)
 		}
 		else if (std::regex_match(line, matches, node_regex))
 		{
-			state_id id = fsm::details::unquote(matches[1]);
+			state_id id = details::unquote(matches[1]);
 			state.state_ids.insert(id);
 
 			if (state.initial_state_id.empty())
@@ -589,6 +576,48 @@ recognize(fsm::recognizer& recognizer, T_Container&& inputs)
 	return details::recognize_internal(recognizer, [&] {
 		return recognizer.handle_input(inputs);
 	});
+}
+
+template <>
+inline recognizer dot<recognizer>(std::istream& is)
+{
+	return recognizer{ recognizer_state{} };
+}
+
+template <>
+inline void dot(std::ostream& os, recognizer const& recognizer)
+{
+	auto const& state = recognizer.state();
+
+	os << "digraph Recognizer {\n";
+	os << "    rankdir = LR;\n\n";
+
+	os << "    // Start state pointer\n";
+	os << "    " << details::quote(state.initial_state_id) << ";\n\n";
+
+	for (auto const& id : state.state_ids)
+	{
+		const bool is_final = state.final_state_ids.contains(id);
+		std::string shape = is_final ? "doublecircle" : "circle";
+
+		details::print_node(os << std::boolalpha, details::quote(id),
+			make_labeled<"final">(is_final),
+			make_labeled<"shape">(shape));
+	}
+	os << "\n";
+
+	for (auto const& [state_and_input, next_state] : state.transitions)
+	{
+		auto const& [from_id, input_opt] = state_and_input;
+		auto const& to_id = next_state;
+
+		details::print_edge(os,
+			details::quote(from_id),
+			details::quote(to_id),
+			input_opt.has_value() ? details::quote(*input_opt) : input_opt);
+	}
+
+	os << "}" << std::endl;
 }
 
 } // namespace fsm

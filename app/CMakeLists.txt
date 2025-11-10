@@ -4,8 +4,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_executable(my_app main.cpp
         converters/MealyToMoore.hpp
         converters/MooreToMealy.hpp
-        printers/MealyToDot.hpp
-        printers/MooreToDot.hpp
         readers/MealyFromDot.hpp
         readers/MooreFromDot.hpp
         StringUtils.hpp)

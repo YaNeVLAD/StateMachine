@@ -14,8 +14,9 @@ add_library(state_machine INTERFACE
         traits/dot_traits.hpp
         recognizer.hpp
         dot.hpp
-        label.hpp
+        labeled.hpp
         fixed_string.hpp
+        regular_grammar.hpp
 )
 
 target_include_directories(state_machine INTERFACE
@@ -30,4 +31,5 @@ target_sources(state_machine INTERFACE
         default_translator.hpp
         traits/minimization_traits.hpp
         minimization.hpp
+        regular_grammar.hpp
 )
