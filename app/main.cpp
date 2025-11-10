@@ -1,5 +1,6 @@
 #include <fsm.hpp>
 
+#include <regex.hpp>
 #include <regular_grammar.hpp>
 
 #include <iostream>
@@ -99,6 +100,17 @@ int main()
 
 			std::ofstream out{ "out_grammar_recognizer.dot" };
 			fsm::dot(out, recognizer);
+		}
+
+		{
+			std::cout << "Regex test" << std::endl;
+
+			fsm::base_regex regex("(a*b)*|(b*a)*");
+
+			std::ofstream out{ "out_regex_recognizer.dot" };
+			fsm::dot(out, regex.recognizer());
+			std::ofstream out2{ "out_regex_recognizer2.dot" };
+			fsm::dot(out2, fsm::minimize(fsm::determinize(regex.recognizer())));
 		}
 	}
 	catch (std::exception const& ex)
