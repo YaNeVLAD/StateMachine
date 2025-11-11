@@ -105,12 +105,12 @@ int main()
 		{
 			std::cout << "Regex test" << std::endl;
 
-			fsm::base_regex regex("(a*b)*|(b*a)*");
+			fsm::regex regex("(a*b)*|(b*a)*");
 
 			std::ofstream out{ "out_regex_recognizer.dot" };
-			fsm::dot(out, regex.recognizer());
+			fsm::dot(out, regex.compile());
 			std::ofstream out2{ "out_regex_recognizer2.dot" };
-			fsm::dot(out2, fsm::minimize(fsm::determinize(regex.recognizer())));
+			fsm::dot(out2, fsm::minimize(fsm::determinize(regex.compile())));
 		}
 	}
 	catch (std::exception const& ex)
