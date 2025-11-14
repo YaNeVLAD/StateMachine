@@ -105,7 +105,7 @@ int main()
 		{
 			std::cout << "Regex test" << std::endl;
 
-			fsm::regex regex("ab*b*a*b");
+			fsm::regex regex("a*c+b*|b*a+c*|c*b+c*");
 
 			std::ofstream out{ "out_regex_recognizer.dot" };
 			fsm::dot(out, regex.compile());

@@ -141,11 +141,13 @@ private:
 				// ab -> a.b
 				// )a ->).a
 				// *a -> *.a
+				// +a -> +.a
 				// a( -> a.(
 				// ) ->)(->).(
 				// ) -> *(-> *.(
+				// ) -> +(-> +.(
 
-				if ((is_operand(current) || current == ')' || current == '*')
+				if ((is_operand(current) || current == ')' || current == '*' || current == '+')
 					&& (is_operand(next) || next == '('))
 				{
 					result += '.';
