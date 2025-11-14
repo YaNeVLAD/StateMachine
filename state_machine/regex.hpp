@@ -36,13 +36,19 @@ public:
 		std::unique_ptr<ast> child;
 	};
 
+	struct kleene_plus // +
+	{
+		std::unique_ptr<ast> child;
+	};
+
 	struct ast
 	{
 		std::variant<
 			symbol,
 			std::unique_ptr<alteration>,
 			std::unique_ptr<concatenation>,
-			std::unique_ptr<kleene_star>>
+			std::unique_ptr<kleene_star>,
+			std::unique_ptr<kleene_plus>>
 			node;
 
 		template <typename T_Node, typename... T_Args>
@@ -55,9 +61,9 @@ public:
 	using output_type = ast;
 
 	[[nodiscard]]
-	static ast operator()(std::string const& infix)
+	static ast operator()(std::string const& regex)
 	{
-		const std::string processed = preprocess(infix);
+		const std::string processed = preprocess(regex);
 		const std::string postfix = infix_to_postfix(processed);
 
 		std::stack<std::unique_ptr<ast>> stack;
@@ -71,6 +77,13 @@ public:
 					: std::optional{ std::string(1, ch) };
 
 				stack.emplace(std::make_unique<ast>(symbol{ term }));
+			}
+			else if (ch == '+')
+			{
+				auto child = std::move(stack.top());
+				stack.pop();
+
+				stack.emplace(ast::make_unique<kleene_plus>(std::move(child)));
 			}
 			else if (ch == '*')
 			{
@@ -110,7 +123,7 @@ public:
 private:
 	static bool is_operand(const char ch)
 	{
-		return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+		return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
 	}
 
 	static std::string preprocess(const std::string& infix)
@@ -145,7 +158,9 @@ private:
 
 	static std::string infix_to_postfix(const std::string& infix)
 	{
-		std::map<char, unsigned> precedence = { { '|', 1 }, { '.', 2 }, { '*', 3 } };
+		std::map<char, unsigned> precedence = {
+			{ '|', 1 }, { '.', 2 }, { '*', 3 }, { '+', 3 }
+		};
 		std::string postfix;
 		std::stack<char> op_stack;
 
@@ -216,6 +231,11 @@ public:
 	recognizer::state_type operator()(std::unique_ptr<regex_parser::kleene_star> const& node)
 	{
 		return op_kleene_star(visit_child(node->child));
+	}
+
+	recognizer::state_type operator()(std::unique_ptr<regex_parser::kleene_plus> const& node)
+	{
+		return op_kleene_plus(visit_child(node->child));
 	}
 
 private:
@@ -319,6 +339,32 @@ private:
 		return nfa;
 	}
 
+	recognizer::state_type op_kleene_plus(const recognizer::state_type& a)
+	{
+		recognizer::state_type nfa;
+		std::string start = new_state_name();
+		std::string final = new_state_name();
+
+		nfa.state_ids = a.state_ids;
+		nfa.transitions = a.transitions;
+
+		nfa.state_ids.insert(start);
+		nfa.state_ids.insert(final);
+		nfa.initial_state_id = start;
+		nfa.final_state_ids = { final };
+
+		nfa.transitions.emplace(std::make_pair(start, std::nullopt), a.initial_state_id);
+
+		for (const auto& f : a.final_state_ids)
+		{
+			nfa.transitions.emplace(std::make_pair(f, std::nullopt), final);
+			nfa.transitions.emplace(std::make_pair(f, std::nullopt), a.initial_state_id);
+		}
+
+		nfa.is_deterministic = false;
+		return nfa;
+	}
+
 	recognizer::state_type visit_child(std::unique_ptr<regex_parser::ast> const& child_node)
 	{
 		return std::visit(*this, child_node->node);
@@ -330,8 +376,6 @@ private:
 
 template <typename T_Parser, typename T_Builder>
 class base_regex
-	: T_Parser
-	, T_Builder
 {
 public:
 	explicit base_regex(std::string const& expr, const bool compile_immediately = true)
