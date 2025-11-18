@@ -1,30 +1,35 @@
 #ifndef RECOGNIZER_HPP
 #define RECOGNIZER_HPP
 
+#include "recognizer.hpp"
+
 #include <base_state_machine.hpp>
+#include <concepts.hpp>
 #include <converter.hpp>
 #include <default_translator.hpp>
 #include <dot.hpp>
+#include <labeled.hpp>
 #include <mealy_machine.hpp>
 #include <moore_machine.hpp>
-#include <recognizer.hpp>
-#include <traits/minimization_traits.hpp>
-#include <traits/state_machine_traits.hpp>
-#include <traits/translation_traits.hpp>
 
+#include <concepts>
 #include <fstream>
+#include <ios>
+#include <istream>
 #include <map>
+#include <optional>
+#include <ostream>
 #include <queue>
 #include <regex>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace fsm
 {
-class recognizer;
-
 struct recognizer_state
 {
 	using state_id = std::string;
@@ -41,26 +46,29 @@ struct recognizer_state
 	bool is_deterministic{};
 };
 
-template <>
-struct state_machine_traits<recognizer>
+template <typename T_State>
+class base_recognizer;
+
+template <typename T_State>
+struct state_machine_traits<base_recognizer<T_State>>
 {
-	using state_type = recognizer_state;
-	using input_type = recognizer_state::input;
+	using state_type = T_State;
+	using input_type = typename T_State::input;
 	using output_type = bool;
 };
 
-template <>
-struct translation_traits<recognizer>
+template <typename T_State>
+struct translation_traits<base_recognizer<T_State>>
 {
-	using find_result_type = recognizer_state::transitions_t::const_iterator;
-	using result_type = recognizer_state::transitions_t::mapped_type;
+	using find_result_type = typename T_State::transitions_t::const_iterator;
+	using result_type = typename T_State::transitions_t::mapped_type;
 
-	static find_result_type find(recognizer_state const& state, recognizer_state::input const& input)
+	static find_result_type find(T_State const& state, typename T_State::input const& input)
 	{
 		return state.transitions.find({ state.current_state_id, input });
 	}
 
-	static bool is_valid(find_result_type const& find_result, recognizer_state const& state)
+	static bool is_valid(find_result_type const& find_result, T_State const& state)
 	{
 		return find_result != state.transitions.end();
 	}
@@ -201,43 +209,44 @@ inline recognizer_state create_recognizer_from_dot(const std::string& filename)
 }
 } // namespace details
 
-class recognizer final
-	: public base_state_machine<recognizer>
-	, public default_translator<recognizer>
+template <typename T_State>
+class base_recognizer final
+	: public base_state_machine<base_recognizer<T_State>>
+	, public default_translator<base_recognizer<T_State>>
 {
-	using base = base_state_machine;
-	using state_id = recognizer_state::state_id;
-	using input_type = state_machine_traits<recognizer>::input_type;
-	using output_type = state_machine_traits<recognizer>::output_type;
+	using base = base_state_machine<base_recognizer>;
+	using state_id = typename T_State::state_id;
+	using input_type = typename state_machine_traits<base_recognizer>::input_type;
+	using output_type = typename state_machine_traits<base_recognizer>::output_type;
 	using translation_result = state_id;
 
-	friend class fsm::base_state_machine<recognizer>;
-	friend class fsm::default_translator<recognizer>;
+	friend class fsm::base_state_machine<base_recognizer>;
+	friend class fsm::default_translator<base_recognizer>;
 
 public:
 	using state_type = recognizer_state;
 
-	explicit recognizer(recognizer_state const& initial_state)
+	explicit base_recognizer(recognizer_state const& initial_state)
 		: base(initial_state)
-		, default_translator()
+		, default_translator<base_recognizer>()
 	{
 	}
 
-	explicit recognizer(recognizer_state&& initial_state)
+	explicit base_recognizer(recognizer_state&& initial_state)
 		: base(std::move(initial_state))
-		, default_translator()
+		, default_translator<base_recognizer>()
 	{
 	}
 
-	explicit recognizer(mealy_machine const& mealy, std::set<state_id> const& final_state_ids)
+	explicit base_recognizer(mealy_machine const& mealy, std::set<state_id> const& final_state_ids)
 		: base(fsm::converter<mealy_machine::state_type, state_type>{}(mealy.state(), final_state_ids))
-		, default_translator()
+		, default_translator<base_recognizer>()
 	{
 	}
 
-	explicit recognizer(moore_machine const& moore, std::set<state_id> const& final_state_ids)
+	explicit base_recognizer(moore_machine const& moore, std::set<state_id> const& final_state_ids)
 		: base(fsm::converter<moore_machine::state_type, state_type>{}(moore.state(), final_state_ids))
-		, default_translator()
+		, default_translator<base_recognizer>()
 	{
 	}
 
@@ -258,17 +267,17 @@ public:
 	{
 		(base::handle_input(inputs), ...);
 
-		return is_final(state().current_state_id);
+		return is_final(base::state().current_state_id);
 	}
 
 	bool is_deterministic()
 	{
-		return current_state().is_deterministic;
+		return base::current_state().is_deterministic;
 	}
 
-	static recognizer from_dot(std::string const& filename)
+	static base_recognizer from_dot(std::string const& filename)
 	{
-		return recognizer{ std::move(details::create_recognizer_from_dot(filename)) };
+		return base_recognizer{ std::move(details::create_recognizer_from_dot(filename)) };
 	}
 
 private:
@@ -279,22 +288,24 @@ private:
 
 	state_type next_state_from(translation_result const& translation_result)
 	{
-		current_state().current_state_id = translation_result;
-		return current_state();
+		base::current_state().current_state_id = translation_result;
+		return base::current_state();
 	}
 
 	[[nodiscard]] output_type is_final(state_id const& state_id) const
 	{
-		return state().final_state_ids.contains(state_id);
+		return base::state().final_state_ids.contains(state_id);
 	}
 };
 
-template <>
-struct minimization_traits<recognizer>
+using recognizer = base_recognizer<recognizer_state>;
+
+template <typename T_State>
+struct minimization_traits<base_recognizer<T_State>>
 {
-	using state_type = recognizer_state;
-	using id_type = state_type::state_id;
-	using input_type = state_type::input;
+	using state_type = T_State;
+	using id_type = typename state_type::state_id;
+	using input_type = typename state_type::input;
 
 	static std::vector<id_type> get_all_state_ids(state_type const& state)
 	{
@@ -336,7 +347,7 @@ struct minimization_traits<recognizer>
 	}
 
 	static recognizer reconstruct_from_partition(
-		recognizer const& original,
+		base_recognizer<T_State> const& original,
 		std::vector<std::set<id_type>> const& partition)
 	{
 		state_type minimal_state;
@@ -384,7 +395,7 @@ struct minimization_traits<recognizer>
 			}
 		}
 
-		return recognizer(std::move(minimal_state));
+		return base_recognizer<T_State>(std::move(minimal_state));
 	}
 };
 
@@ -539,12 +550,12 @@ inline recognizer determinize(recognizer const& recognizer)
 
 namespace details
 {
-template <typename T_Action>
-state_machine_traits<recognizer>::output_type
-recognize_internal(fsm::recognizer& recognizer, T_Action&& action)
+template <typename T_Recognizer, typename T_Action>
+typename state_machine_traits<T_Recognizer>::output_type
+recognize_internal(T_Recognizer& recognizer, T_Action&& action)
 {
 	auto saved_state = recognizer.state();
-	auto result = state_machine_traits<fsm::recognizer>::output_type{};
+	auto result = typename state_machine_traits<T_Recognizer>::output_type{};
 
 	try
 	{
@@ -554,24 +565,24 @@ recognize_internal(fsm::recognizer& recognizer, T_Action&& action)
 	{
 	}
 
-	recognizer = fsm::recognizer{ std::move(saved_state) };
+	recognizer = T_Recognizer{ std::move(saved_state) };
 
 	return result;
 }
 } // namespace details
 
-template <std::convertible_to<state_machine_traits<recognizer>::output_type>... T_Args>
-state_machine_traits<recognizer>::output_type
-recognize(fsm::recognizer& recognizer, T_Args&&... args)
+template <typename T_Recognizer, std::convertible_to<state_machine_traits<recognizer>::output_type>... T_Args>
+typename state_machine_traits<T_Recognizer>::output_type
+recognize(T_Recognizer& recognizer, T_Args&&... args)
 {
 	return details::recognize_internal(recognizer, [&] {
 		return recognizer.handle_input(std::forward<T_Args>(args)...);
 	});
 }
 
-template <concepts::container T_Container>
-state_machine_traits<recognizer>::output_type
-recognize(fsm::recognizer& recognizer, T_Container&& inputs)
+template <typename T_Recognizer, concepts::container T_Container>
+typename state_machine_traits<T_Recognizer>::output_type
+recognize(T_Recognizer& recognizer, T_Container&& inputs)
 {
 	return details::recognize_internal(recognizer, [&] {
 		return recognizer.handle_input(inputs);

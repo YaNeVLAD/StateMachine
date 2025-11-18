@@ -1,6 +1,7 @@
 #ifndef MOORE_MACHINE_HPP
 #define MOORE_MACHINE_HPP
 
+#include <format>
 #include <map>
 #include <ranges>
 #include <string>
@@ -9,6 +10,7 @@
 #include <base_state_machine.hpp>
 #include <default_translator.hpp>
 #include <dot.hpp>
+#include <labeled.hpp>
 
 #include "moore/moore_state.hpp"
 #include "moore/moore_state_machine_traits.hpp"

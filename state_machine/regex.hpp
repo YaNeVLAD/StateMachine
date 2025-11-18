@@ -1,7 +1,14 @@
 #ifndef REGEX_HPP
 #define REGEX_HPP
 
+#include <map>
+#include <memory>
+#include <optional>
+#include <stack>
+#include <stdexcept>
 #include <string>
+#include <utility>
+#include <variant>
 
 #include <recognizer.hpp>
 

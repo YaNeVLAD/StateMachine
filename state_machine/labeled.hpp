@@ -35,7 +35,15 @@ public:
 
 private:
 	T m_value;
-	static constexpr const auto& name_value = T_Name;
+
+	template <typename T_Char, typename T_Traits>
+	friend std::basic_ostream<T_Char, T_Traits>&
+	operator<<(std::basic_ostream<T_Char, T_Traits>& oss, const labeled& obj)
+	{
+		oss << obj.name() << " = " << obj.value();
+
+		return oss;
+	}
 };
 
 template <base_fixed_string T_Name, typename T_Value>
@@ -52,21 +60,5 @@ constexpr auto make_labeled(T_Args&&... args)
 	};
 }
 } // namespace fsm
-
-template <fsm::fixed_string T_Name, typename T>
-std::ostream& operator<<(std::ostream& oss, fsm::labeled<T_Name, T> const& obj)
-{
-	oss << obj.name().c_str() << " = " << obj.value();
-
-	return oss;
-}
-
-template <fsm::fixed_wstring T_Name, typename T>
-std::wostream& operator<<(std::wostream& oss, fsm::labeled<T_Name, T> const& obj)
-{
-	oss << obj.name().c_str() << " = " << obj.value();
-
-	return oss;
-}
 
 #endif // LABELED_HPP

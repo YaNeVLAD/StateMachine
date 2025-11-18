@@ -2,6 +2,7 @@
 #define MEALY_MACHINE_HPP
 
 #include <algorithm>
+#include <format>
 #include <map>
 #include <string>
 #include <utility>
@@ -9,6 +10,7 @@
 #include <base_state_machine.hpp>
 #include <default_translator.hpp>
 #include <dot.hpp>
+#include <labeled.hpp>
 
 #include "mealy/mealy_state.hpp"
 #include "mealy/mealy_state_machine_traits.hpp"

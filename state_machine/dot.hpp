@@ -1,9 +1,10 @@
 #ifndef DOT_HPP
 #define DOT_HPP
 
-#include <format>
-
-#include <labeled.hpp>
+#include <istream>
+#include <optional>
+#include <ostream>
+#include <string>
 
 namespace fsm
 {

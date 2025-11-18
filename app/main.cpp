@@ -105,7 +105,7 @@ int main()
 		{
 			std::cout << "Regex test" << std::endl;
 
-			fsm::regex regex("a*c+b*|b*a+c*|c*b+c*");
+			fsm::regex regex("(a|b)*");
 
 			std::ofstream out{ "out_regex_recognizer.dot" };
 			fsm::dot(out, regex.compile());
@@ -113,7 +113,7 @@ int main()
 			std::ofstream out2{ "out_regex_recognizer2.dot" };
 			auto recognizer = fsm::minimize(fsm::determinize(regex.compile()));
 			fsm::dot(out2, recognizer);
-			// std::cout << std::boolalpha << fsm::recognize(recognizer, std::vector{ "a", "a", "c", "b" });
+			// std::cout << std::boolalpha << fsm::recognize(recognizer, "ababababbabbababaab");
 		}
 	}
 	catch (std::exception const& ex)

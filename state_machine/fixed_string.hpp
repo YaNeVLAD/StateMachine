@@ -1,5 +1,6 @@
 #ifndef FIXED_STRING_HPP
 #define FIXED_STRING_HPP
+
 #include <ostream>
 
 namespace fsm
@@ -50,6 +51,11 @@ struct base_fixed_string
 
 		return std::equal(data, data + N, rhs.data, rhs.data + R);
 	}
+
+	friend std::basic_ostream<T_Char>& operator<<(std::basic_ostream<T_Char>& os, const base_fixed_string& str)
+	{
+		return os << str.c_str();
+	}
 };
 
 template <size_t N>
@@ -58,12 +64,5 @@ using fixed_string = base_fixed_string<N, char>;
 template <size_t N>
 using fixed_wstring = base_fixed_string<N, wchar_t>;
 } // namespace fsm
-
-template <typename T_Char, size_t N>
-std::basic_ostream<T_Char>& operator<<(std::ostream& os, const fsm::base_fixed_string<N, T_Char>& str)
-{
-	os << str.c_str();
-	return os;
-}
 
 #endif // FIXED_STRING_HPP
