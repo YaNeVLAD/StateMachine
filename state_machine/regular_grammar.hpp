@@ -11,7 +11,6 @@
 
 namespace fsm
 {
-
 enum class regular_grammar_type
 {
 	LeftLinear,
@@ -343,7 +342,6 @@ inline void save_grammar(std::ostream& os, regular_grammar const& grammar)
 		os << "\n";
 	}
 }
-
 } // namespace fsm
 
 #endif // REGULAR_GRAMMAR_HPP
