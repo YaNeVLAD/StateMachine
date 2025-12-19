@@ -1,3 +1,7 @@
+#include "lang/Lang.hpp"
+#include "lang/Parser.hpp"
+#include "lexer.hpp"
+
 #include <fsm.hpp>
 
 #include <regex.hpp>
@@ -8,113 +12,84 @@
 #include "readers/MealyFromDot.hpp"
 #include "readers/MooreFromDot.hpp"
 
+template <typename TokenType, typename Mapper>
+void LoadRulesFromFile(fsm::lexer<TokenType>& lexer, const std::string& filename, Mapper mapper)
+{
+	std::ifstream file(filename);
+	if (!file.is_open())
+	{
+		throw std::runtime_error("Could not open lexer rules file: " + filename);
+	}
+
+	std::string line;
+	size_t line_num = 0;
+
+	while (std::getline(file, line))
+	{
+		line_num++;
+		std::string clean_line = trim(line);
+
+		if (clean_line.empty() || clean_line[0] == '#')
+		{
+			continue;
+		}
+
+		std::stringstream ss(clean_line);
+		std::string token_name_str;
+		std::string regex_part;
+		bool skip = false;
+
+		ss >> token_name_str;
+
+		if (token_name_str == "%skip")
+		{
+			skip = true;
+			if (!(ss >> token_name_str))
+			{
+				throw std::runtime_error("Syntax error in rules file at line " + std::to_string(line_num) + ": expected token name after %skip");
+			}
+		}
+
+		std::getline(ss, regex_part);
+		regex_part = trim(regex_part);
+
+		if (regex_part.empty())
+		{
+			throw std::runtime_error("Syntax error at line " + std::to_string(line_num) + ": empty regex for token " + token_name_str);
+		}
+
+		try
+		{
+			TokenType type = mapper(token_name_str);
+
+			lexer.add_rule(regex_part, type, skip);
+		}
+		catch (const std::exception& e)
+		{
+			throw std::runtime_error("Error processing rule at line " + std::to_string(line_num) + ": " + e.what());
+		}
+	}
+}
+
 int main()
 {
 	using namespace std::literals;
 
-	const std::string mooreFile2 = "res/moore2.dot";
-	const std::string mealyFile2 = "res/mealy2.dot";
-	const std::string recognizerFile = "res/recognizer.dot";
 	try
 	{
-		// {
-		// 	std::cout << "Minimization Test Moore" << std::endl;
-		// 	auto moore = CreateMooreMachineFromDot(mooreFile2);
-		// 	std::cout << "Input: z1, z2, z2, z1, z2, z1, z1, z2" << std::endl
-		// 			  << moore.handle_input("z1") << std::endl
-		// 			  << moore.handle_input("z2") << std::endl
-		// 			  << moore.handle_input("z2") << std::endl
-		// 			  << moore.handle_input("z1") << std::endl
-		// 			  << moore.handle_input("z2") << std::endl
-		// 			  << moore.handle_input("z1") << std::endl
-		// 			  << moore.handle_input("z1") << std::endl
-		// 			  << moore.handle_input("z2") << std::endl;
-		//
-		// 	auto minMoore = fsm::minimize(moore);
-		// 	std::cout << "Input: z1, z2, z2, z1, z2, z1, z1, z2" << std::endl
-		// 			  << minMoore.handle_input("z1") << std::endl
-		// 			  << minMoore.handle_input("z2") << std::endl
-		// 			  << minMoore.handle_input("z2") << std::endl
-		// 			  << minMoore.handle_input("z1") << std::endl
-		// 			  << minMoore.handle_input("z2") << std::endl
-		// 			  << minMoore.handle_input("z1") << std::endl
-		// 			  << minMoore.handle_input("z1") << std::endl
-		// 			  << minMoore.handle_input("z2") << std::endl;
-		//
-		// 	std::ofstream out("min_moore2.dot");
-		// 	fsm::dot(out, minMoore);
-		// }
-		//
-		// {
-		// 	std::cout << "Minimization Test Mealy" << std::endl;
-		// 	auto mealy = CreateMealyMachineFromDot(mealyFile2);
-		// 	std::cout << "Input: z1, z2, z2, z1, z2, z1, z1, z2" << std::endl
-		// 			  << mealy.handle_input("z1") << std::endl
-		// 			  << mealy.handle_input("z2") << std::endl
-		// 			  << mealy.handle_input("z2") << std::endl
-		// 			  << mealy.handle_input("z1") << std::endl
-		// 			  << mealy.handle_input("z2") << std::endl
-		// 			  << mealy.handle_input("z1") << std::endl
-		// 			  << mealy.handle_input("z1") << std::endl
-		// 			  << mealy.handle_input("z2") << std::endl;
-		//
-		// 	auto minMealy = fsm::minimize(mealy);
-		// 	std::cout << "Input: z1, z2, z2, z1, z2, z1, z1, z2" << std::endl
-		// 			  << minMealy.handle_input("z1") << std::endl
-		// 			  << minMealy.handle_input("z2") << std::endl
-		// 			  << minMealy.handle_input("z2") << std::endl
-		// 			  << minMealy.handle_input("z1") << std::endl
-		// 			  << minMealy.handle_input("z2") << std::endl
-		// 			  << minMealy.handle_input("z1") << std::endl
-		// 			  << minMealy.handle_input("z1") << std::endl
-		// 			  << minMealy.handle_input("z2") << std::endl;
-		//
-		// 	std::ofstream out("min_mealy2.dot");
-		// 	fsm::dot(out, minMealy);
-		// }
-		//
-		// {
-		// 	std::cout << "Recognizer test" << std::endl;
-		//
-		// 	std::ifstream file("res/recognizer.dot");
-		// 	auto recognizer = fsm::dot<fsm::recognizer>(file);
-		//
-		// 	std::cout << "is_deterministic " << std::boolalpha << recognizer.is_deterministic() << std::endl;
-		// 	auto dr = fsm::determinize(recognizer);
-		// 	auto mdr = fsm::minimize(dr);
-		//
-		// 	std::ofstream out1{ "out_recognizer.dot" }, out2{ "out_recognizer2.dot" };
-		// 	fsm::dot(out1, dr);
-		// 	fsm::dot(out2, mdr);
-		// }
-		//
-		// {
-		// 	std::cout << "Grammar test" << std::endl;
-		//
-		// 	std::ifstream file("res/grammar.txt");
-		// 	auto grammar = fsm::load_grammar(file);
-		//
-		// 	fsm::save_grammar(std::cout, grammar);
-		//
-		// 	auto recognizer = fsm::regular_grammar_to_recognizer(grammar);
-		//
-		// 	std::ofstream out{ "out_grammar_recognizer.dot" };
-		// 	fsm::dot(out, recognizer);
-		// }
+		std::ifstream src("res/lang_src.txt");
+		std::stringstream buffer;
 
-		{
-			std::cout << "Regex test" << std::endl;
+		buffer << src.rdbuf();
+		std::string source_code = buffer.str();
 
-			fsm::regex regex("(a|b)*");
+		fsm::lexer<TokenType> lexer(source_code);
+		LoadRulesFromFile(lexer, "res/lang_grammar.txt", Mapper());
 
-			std::ofstream out{ "out_regex_recognizer.dot" };
-			fsm::dot(out, regex.compile());
+		const auto tokens = lexer.tokenize();
 
-			std::ofstream out2{ "out_regex_recognizer2.dot" };
-			auto recognizer = fsm::minimize(fsm::determinize(regex.compile()));
-			fsm::dot(out2, recognizer);
-			// std::cout << std::boolalpha << fsm::recognize(recognizer, "ababababbabbababaab");
-		}
+		parser::Parser parser(tokens);
+		parser.parse();
 	}
 	catch (std::exception const& ex)
 	{

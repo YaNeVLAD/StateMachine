@@ -6,7 +6,9 @@ add_executable(my_app main.cpp
         converters/MooreToMealy.hpp
         readers/MealyFromDot.hpp
         readers/MooreFromDot.hpp
-        StringUtils.hpp)
+        StringUtils.hpp
+        lang/Lang.hpp
+        lang/Parser.hpp)
 
 add_custom_command(
         TARGET my_app POST_BUILD

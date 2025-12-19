@@ -7,6 +7,7 @@
 
 #include <map>
 #include <set>
+#include <stdexcept>
 #include <vector>
 
 namespace fsm

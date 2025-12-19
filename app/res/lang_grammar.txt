@@ -1,0 +1,30 @@
+# --- Keywords ---
+KW_MAIN     main
+KW_BEGIN    begin
+KW_END      end
+KW_VAR      var
+KW_INT      int
+KW_FLOAT    float
+
+# --- Punctuation ---
+ASSIGN      =
+PLUS        \+
+MINUS       -
+STAR        \*
+SLASH       /
+DOT         \.
+COMMA       ,
+COLON       :
+SEMICOLON   ;
+LPAREN      \(
+RPAREN      \)
+
+# --- Literals ---
+NUMBER      (0|1|2|3|4|5|6|7|8|9)+\.(0|1|2|3|4|5|6|7|8|9)+
+NUMBER      (0|1|2|3|4|5|6|7|8|9)+
+
+# Идентификатор (убрали \e, теперь просто e)
+IDENTIFIER  (a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|_)(a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|_|0|1|2|3|4|5|6|7|8|9)*
+
+# --- Skip ---
+%skip SPACE ( |\n|\t|\r)+

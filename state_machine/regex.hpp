@@ -16,6 +16,24 @@ namespace fsm
 {
 namespace details
 {
+enum class token_type
+{
+	literal,
+	etranslate, // e
+	lparen, // (
+	rparen, // )
+	star, // *
+	plus, // +
+	pipe, // |
+	concat // .
+};
+
+struct token
+{
+	token_type type;
+	char value;
+};
+
 class regex_parser
 {
 public:
@@ -70,51 +88,66 @@ public:
 	[[nodiscard]]
 	static ast operator()(std::string const& regex)
 	{
-		const std::string processed = preprocess(regex);
-		const std::string postfix = infix_to_postfix(processed);
+		const auto tokens = tokenize(regex);
+
+		const auto processed_tokens = insert_concatenation(tokens);
+
+		const auto postfix = infix_to_postfix(processed_tokens);
 
 		std::stack<std::unique_ptr<ast>> stack;
 
-		for (const char ch : postfix)
+		for (const auto& [type, value] : postfix)
 		{
-			if (is_operand(ch))
+			if (type == token_type::literal)
 			{
-				const auto term = (ch == 'e')
-					? std::nullopt
-					: std::optional{ std::string(1, ch) };
-
-				stack.emplace(std::make_unique<ast>(symbol{ term }));
+				stack.emplace(std::make_unique<ast>(symbol{ std::string(1, value) }));
 			}
-			else if (ch == '+')
+			else if (type == token_type::etranslate)
 			{
+				stack.emplace(std::make_unique<ast>(symbol{ std::nullopt }));
+			}
+			else if (type == token_type::plus)
+			{
+				if (stack.empty())
+				{
+					throw std::runtime_error("Parse error: unexpected +");
+				}
 				auto child = std::move(stack.top());
 				stack.pop();
-
 				stack.emplace(ast::make_unique<kleene_plus>(std::move(child)));
 			}
-			else if (ch == '*')
+			else if (type == token_type::star)
 			{
+				if (stack.empty())
+				{
+					throw std::runtime_error("Parse error: unexpected *");
+				}
 				auto child = std::move(stack.top());
 				stack.pop();
-
 				stack.emplace(ast::make_unique<kleene_star>(std::move(child)));
 			}
-			else if (ch == '.')
+			else if (type == token_type::concat)
 			{
+				if (stack.size() < 2)
+				{
+					throw std::runtime_error("Parse error: unexpected concatenation");
+				}
 				auto rhs = std::move(stack.top());
 				stack.pop();
 				auto lhs = std::move(stack.top());
 				stack.pop();
-
 				stack.emplace(ast::make_unique<concatenation>(std::move(lhs), std::move(rhs)));
 			}
-			else if (ch == '|')
+			else if (type == token_type::pipe)
 			{
+				if (stack.size() < 2)
+				{
+					throw std::runtime_error("Parse error: unexpected |");
+				}
 				auto rhs = std::move(stack.top());
 				stack.pop();
 				auto lhs = std::move(stack.top());
 				stack.pop();
-
 				stack.emplace(ast::make_unique<alteration>(std::move(lhs), std::move(rhs)));
 			}
 		}
@@ -128,85 +161,150 @@ public:
 	}
 
 private:
-	static bool is_operand(const char ch)
+	static std::vector<token> tokenize(const std::string& input)
 	{
-		return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9');
-	}
-
-	static std::string preprocess(const std::string& infix)
-	{
-		std::string result;
-		for (size_t i = 0; i < infix.length(); ++i)
+		std::vector<token> tokens;
+		for (size_t i = 0; i < input.length(); ++i)
 		{
-			result += infix[i];
-			if (i + 1 < infix.length())
+			if (const char ch = input[i]; ch == '\\')
 			{
-				const char current = infix[i];
-				const char next = infix[i + 1];
-
-				// Insert '.' if:
-				// ab -> a.b
-				// )a ->).a
-				// *a -> *.a
-				// +a -> +.a
-				// a( -> a.(
-				// ) ->)(->).(
-				// ) -> *(-> *.(
-				// ) -> +(-> +.(
-
-				if ((is_operand(current) || current == ')' || current == '*' || current == '+')
-					&& (is_operand(next) || next == '('))
+				if (i + 1 >= input.length())
 				{
-					result += '.';
+					throw std::runtime_error("Trailing backslash in regex");
 				}
-			}
-		}
+				const char next = input[++i];
+				char literal_value = next;
 
-		return result;
-	}
+				switch (next)
+				{
+				case 'n':
+					literal_value = '\n';
+					break;
+				case 'r':
+					literal_value = '\r';
+					break;
+				case 't':
+					literal_value = '\t';
+					break;
+				case '0':
+					literal_value = '0';
+					break;
+				default:
+					literal_value = next;
+					break;
+				}
 
-	static std::string infix_to_postfix(const std::string& infix)
-	{
-		std::map<char, unsigned> precedence = {
-			{ '|', 1 }, { '.', 2 }, { '*', 3 }, { '+', 3 }
-		};
-		std::string postfix;
-		std::stack<char> op_stack;
-
-		for (char ch : infix)
-		{
-			if (is_operand(ch))
-			{
-				postfix += ch;
+				tokens.push_back({ token_type::literal, literal_value });
 			}
 			else if (ch == '(')
 			{
-				op_stack.push(ch);
+				tokens.push_back({ token_type::lparen, ch });
 			}
 			else if (ch == ')')
 			{
-				while (!op_stack.empty() && op_stack.top() != '(')
-				{
-					postfix += op_stack.top();
-					op_stack.pop();
-				}
-				op_stack.pop();
+				tokens.push_back({ token_type::rparen, ch });
+			}
+			else if (ch == '*')
+			{
+				tokens.push_back({ token_type::star, ch });
+			}
+			else if (ch == '+')
+			{
+				tokens.push_back({ token_type::plus, ch });
+			}
+			else if (ch == '|')
+			{
+				tokens.push_back({ token_type::pipe, ch });
 			}
 			else
 			{
-				while (!op_stack.empty() && op_stack.top() != '('
-					&& precedence[op_stack.top()] >= precedence[ch])
+				tokens.push_back({ token_type::literal, ch });
+			}
+		}
+		return tokens;
+	}
+
+	static std::vector<token> insert_concatenation(const std::vector<token>& tokens)
+	{
+		std::vector<token> result;
+		for (size_t i = 0; i < tokens.size(); ++i)
+		{
+			result.push_back(tokens[i]);
+
+			if (i + 1 < tokens.size())
+			{
+				const auto& curr = tokens[i];
+				const auto& next = tokens[i + 1];
+
+				const bool curr_can_concat = (curr.type == token_type::literal
+					|| curr.type == token_type::rparen
+					|| curr.type == token_type::star
+					|| curr.type == token_type::plus);
+
+				const bool next_can_concat = (next.type == token_type::literal
+					|| next.type == token_type::lparen);
+
+				if (curr_can_concat && next_can_concat)
 				{
-					postfix += op_stack.top();
+					result.push_back({ token_type::concat, '.' });
+				}
+			}
+		}
+		return result;
+	}
+
+	static std::vector<token> infix_to_postfix(const std::vector<token>& infix)
+	{
+		std::map<token_type, unsigned> precedence = {
+			{ token_type::pipe, 1 },
+			{ token_type::concat, 2 },
+			{ token_type::star, 3 },
+			{ token_type::plus, 3 }
+		};
+
+		std::vector<token> postfix;
+		std::stack<token> op_stack;
+
+		for (const auto& tok : infix)
+		{
+			switch (tok.type)
+			{
+			case token_type::literal:
+				postfix.push_back(tok);
+				break;
+
+			case token_type::lparen:
+				op_stack.push(tok);
+				break;
+
+			case token_type::rparen:
+				while (!op_stack.empty() && op_stack.top().type != token_type::lparen)
+				{
+					postfix.push_back(op_stack.top());
 					op_stack.pop();
 				}
-				op_stack.push(ch);
+				if (!op_stack.empty())
+				{
+					op_stack.pop();
+				}
+				break;
+
+			default: // Operator
+				while (!op_stack.empty()
+					&& op_stack.top().type != token_type::lparen
+					&& precedence[op_stack.top().type] >= precedence[tok.type])
+				{
+					postfix.push_back(op_stack.top());
+					op_stack.pop();
+				}
+				op_stack.push(tok);
+				break;
 			}
 		}
 
 		while (!op_stack.empty())
 		{
-			postfix += op_stack.top();
+			postfix.push_back(op_stack.top());
 			op_stack.pop();
 		}
 

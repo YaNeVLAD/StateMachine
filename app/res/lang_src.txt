@@ -1,0 +1,10 @@
+main
+    var a, b : int;
+    var x : float;
+    const_val = 100;
+begin
+    a = 10;
+    b = a * 2 + 5;
+    x = 3.14 * b;
+    x = -x
+end.

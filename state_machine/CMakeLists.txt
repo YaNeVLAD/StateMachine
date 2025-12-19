@@ -18,6 +18,7 @@ add_library(state_machine INTERFACE
         fixed_string.hpp
         regular_grammar.hpp
         regex.hpp
+        lexer.hpp
 )
 
 target_include_directories(state_machine INTERFACE
