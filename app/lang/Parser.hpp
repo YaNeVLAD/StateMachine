@@ -3,64 +3,69 @@
 
 #include <iostream>
 #include <stdexcept>
-#include <vector>
 
 #include "lexer.hpp"
 
 #include "Lang.hpp"
 
+// lexer вызывать по одному токену
+// Ограничить длину идентификатора и значения чисел
 namespace parser
 {
+using TokenType = my_lang::TokenType;
 using Token = fsm::token<TokenType>;
+using Lexer = fsm::lexer<TokenType>;
 
 class Parser
 {
 public:
-	explicit Parser(std::vector<Token> tokens)
-		: m_tokens(std::move(tokens))
-		, m_pos(0)
+	explicit Parser(Lexer& lexer)
+		: m_lexer(lexer)
 	{
 	}
 
 	void parse()
 	{
-		if (m_tokens.empty())
+		if (!m_lexer.peek().has_value())
 		{
 			return;
 		}
+
 		parse_program();
 	}
 
 private:
-	std::vector<Token> m_tokens;
-	size_t m_pos;
+	Lexer& m_lexer;
 
-	[[nodiscard]] const Token& peek() const
+	[[nodiscard]] std::optional<Token> peek() const
 	{
-		if (m_pos >= m_tokens.size())
-		{
-			throw std::runtime_error("Unexpected end of file");
-		}
-		return m_tokens[m_pos];
+		return m_lexer.peek();
 	}
 
-	bool match(const TokenType type)
+	[[nodiscard]] bool match(const TokenType type) const
 	{
-		if (m_pos < m_tokens.size() && m_tokens[m_pos].type == type)
+		if (const auto token = peek(); token && token->type == type)
 		{
-			m_pos++;
+			m_lexer.next();
+
 			return true;
 		}
+
 		return false;
 	}
 
-	const Token& consume(const TokenType type, const std::string& err_msg)
+	void consume(const TokenType type, const std::string& err_msg) const
 	{
-		if (match(type))
+		const auto token = peek();
+		if (token && token->type == type)
 		{
-			return m_tokens[m_pos - 1];
+			m_lexer.next();
 		}
-		throw std::runtime_error("Syntax Error at line " + std::to_string(peek().line) + ": " + err_msg + ". Found: " + std::string(peek().lexeme));
+
+		const std::string found = token ? std::string(token->lexeme) : "EOF";
+		const size_t line = token ? token->line : 0;
+
+		throw std::runtime_error("Syntax Error at line " + std::to_string(line) + ": " + err_msg + ". Found: " + found);
 	}
 
 	void parse_program()
@@ -75,33 +80,38 @@ private:
 	void parse_body()
 	{
 		parse_defines();
-
 		consume(TokenType::KwBegin, "Expected 'begin'");
 		parse_statements();
 	}
 
 	void parse_defines()
 	{
-		while (peek().type != TokenType::KwBegin && peek().type != TokenType::KwEnd)
+		while (true)
 		{
-			if (peek().type == TokenType::KwVar)
+			auto t = peek();
+			if (!t.has_value())
+			{
+				break;
+			}
+
+			if (t->type == TokenType::KwVar)
 			{
 				parse_var();
+				consume(TokenType::Semicolon, "Expected ';' after var definition");
 			}
-			else if (peek().type == TokenType::Identifier)
+			else if (t->type == TokenType::Identifier)
 			{
 				parse_consts();
+				consume(TokenType::Semicolon, "Expected ';' after const definition");
 			}
 			else
 			{
-				throw std::runtime_error("Expected variable or constant definition");
+				break;
 			}
-
-			consume(TokenType::Semicolon, "Expected ';' after definition");
 		}
 	}
 
-	void parse_var()
+	void parse_var() const
 	{
 		consume(TokenType::KwVar, "Expected 'var'");
 		parse_id_list();
@@ -109,7 +119,7 @@ private:
 		parse_type();
 	}
 
-	void parse_id_list()
+	void parse_id_list() const
 	{
 		consume(TokenType::Identifier, "Expected identifier");
 		while (match(TokenType::Comma))
@@ -118,7 +128,7 @@ private:
 		}
 	}
 
-	void parse_type()
+	void parse_type() const
 	{
 		if (match(TokenType::KwInt) || match(TokenType::KwFloat))
 		{
@@ -129,11 +139,6 @@ private:
 
 	void parse_consts()
 	{
-		parse_const();
-	}
-
-	void parse_const()
-	{
 		consume(TokenType::Identifier, "Expected identifier for constant");
 		consume(TokenType::Assign, "Expected '='");
 		parse_expression();
@@ -141,18 +146,29 @@ private:
 
 	void parse_statements()
 	{
-		while (peek().type != TokenType::KwEnd)
+		while (true)
 		{
+			auto t = peek();
+			if (!t.has_value())
+			{
+				throw std::runtime_error("Unexpected EOF inside statements");
+			}
+			if (t->type == TokenType::KwEnd)
+			{
+				break;
+			}
+
 			parse_statement();
-			if (peek().type == TokenType::Semicolon)
+
+			if (peek()->type == TokenType::Semicolon)
 			{
 				consume(TokenType::Semicolon, "Expected ';'");
 			}
 			else
 			{
-				if (peek().type != TokenType::KwEnd)
+				if (peek()->type != TokenType::KwEnd)
 				{
-					consume(TokenType::Semicolon, "Expected ';'");
+					throw std::runtime_error("Expected ';' between statements");
 				}
 			}
 		}
@@ -202,7 +218,9 @@ private:
 		}
 		else
 		{
-			throw std::runtime_error("Unexpected token in expression: " + std::string(peek().lexeme));
+			const auto t = peek();
+			const std::string val = t ? std::string(t->lexeme) : "EOF";
+			throw std::runtime_error("Unexpected token in expression: " + val);
 		}
 	}
 };

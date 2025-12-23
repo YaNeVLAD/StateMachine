@@ -83,12 +83,10 @@ int main()
 		buffer << src.rdbuf();
 		std::string source_code = buffer.str();
 
-		fsm::lexer<TokenType> lexer(source_code);
-		LoadRulesFromFile(lexer, "res/lang_grammar.txt", Mapper());
+		fsm::lexer<my_lang::TokenType> lexer(source_code);
+		LoadRulesFromFile(lexer, "res/lang_grammar.txt", my_lang::Mapper());
 
-		const auto tokens = lexer.tokenize();
-
-		parser::Parser parser(tokens);
+		parser::Parser parser(lexer);
 		parser.parse();
 	}
 	catch (std::exception const& ex)

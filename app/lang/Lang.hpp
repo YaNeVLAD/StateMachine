@@ -5,6 +5,8 @@
 #include <stdexcept>
 #include <string>
 
+namespace my_lang
+{
 enum class TokenType
 {
 	// Ключевые слова
@@ -106,5 +108,6 @@ inline auto Mapper()
 		throw std::runtime_error("Unknown token: " + name);
 	};
 }
+} // namespace mylang
 
 #endif // C_LEXER_HPP

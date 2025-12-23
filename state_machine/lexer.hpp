@@ -57,6 +57,8 @@ public:
 
 		m_rules.emplace_back(type, std::move(min_dfa), skip, m_rules.size());
 
+		m_peek_buffer.reset();
+
 		return *this;
 	}
 
@@ -68,6 +70,8 @@ public:
 		m_line = 1;
 		m_column = 1;
 
+		m_peek_buffer.reset();
+
 		if (with_clear)
 		{
 			m_rules.clear();
@@ -76,7 +80,58 @@ public:
 		return *this;
 	}
 
+	std::optional<token_type> peek()
+	{
+		if (m_peek_buffer.has_value())
+		{
+			m_peek_buffer = read_next_token();
+		}
+
+		return m_peek_buffer;
+	}
+
 	std::optional<token_type> next()
+	{
+		if (m_peek_buffer)
+		{
+			auto token = m_peek_buffer;
+			m_peek_buffer.reset();
+
+			return token;
+		}
+
+		return read_next_token();
+	}
+
+	std::vector<token_type> tokenize()
+	{
+		std::vector<token_type> tokens;
+		while (auto token = next())
+		{
+			tokens.emplace_back(*token);
+		}
+
+		return tokens;
+	}
+
+private:
+	struct match_result
+	{
+		rule const* matched_rule;
+
+		size_t length{};
+	};
+
+	std::string_view m_source;
+	std::vector<rule> m_rules;
+
+	size_t m_cursor = 0;
+	size_t m_line = 1;
+	size_t m_column = 1;
+
+	std::optional<token_type> m_peek_buffer{};
+
+	std::optional<token_type> read_next_token()
 	{
 		while (m_cursor < m_source.length())
 		{
@@ -112,32 +167,6 @@ public:
 
 		return std::nullopt;
 	}
-
-	std::vector<token_type> tokenize()
-	{
-		std::vector<token_type> tokens;
-		while (auto token = next())
-		{
-			tokens.emplace_back(*token);
-		}
-
-		return tokens;
-	}
-
-private:
-	struct match_result
-	{
-		rule const* matched_rule;
-
-		size_t length{};
-	};
-
-	std::string_view m_source;
-	std::vector<rule> m_rules;
-
-	size_t m_cursor = 0;
-	size_t m_line = 1;
-	size_t m_column = 1;
 
 	std::optional<match_result> find_longest_match()
 	{
