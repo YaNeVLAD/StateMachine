@@ -10,7 +10,7 @@
 #include <utility>
 #include <variant>
 
-#include <recognizer.hpp>
+#include "recognizer.hpp"
 
 namespace fsm
 {

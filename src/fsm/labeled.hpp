@@ -1,7 +1,7 @@
 #ifndef LABELED_HPP
 #define LABELED_HPP
 
-#include <fixed_string.hpp>
+#include "fixed_string.hpp"
 
 namespace fsm
 {

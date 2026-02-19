@@ -9,11 +9,10 @@
 #include <utility>
 #include <vector>
 
-#include <minimization.hpp>
-#include <traits/minimization_traits.hpp>
-
-#include <moore/moore_state.hpp>
-#include <moore_machine.hpp>
+#include "../minimization.hpp"
+#include "../moore_machine.hpp"
+#include "../traits/minimization_traits.hpp"
+#include "moore_state.hpp"
 
 template <>
 struct fsm::minimization_traits<fsm::moore_machine>

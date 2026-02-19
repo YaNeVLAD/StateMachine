@@ -9,11 +9,10 @@
 #include <utility>
 #include <vector>
 
-#include <minimization.hpp>
-#include <traits/minimization_traits.hpp>
-
-#include <mealy/mealy_state.hpp>
-#include <mealy_machine.hpp>
+#include "../mealy_machine.hpp"
+#include "../minimization.hpp"
+#include "../traits/minimization_traits.hpp"
+#include "mealy/mealy_state.hpp"
 
 template <>
 struct fsm::minimization_traits<fsm::mealy_machine>

@@ -1,7 +1,7 @@
 #ifndef MEALY_STATE_MACHINE_TRAITS_HPP
 #define MEALY_STATE_MACHINE_TRAITS_HPP
 
-#include <traits/state_machine_traits.hpp>
+#include "../traits/state_machine_traits.hpp"
 
 #include "mealy_state.hpp"
 

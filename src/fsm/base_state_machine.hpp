@@ -1,8 +1,8 @@
 #ifndef STATE_MACHINE_HPP
 #define STATE_MACHINE_HPP
 
-#include <concepts.hpp>
-#include <traits/state_machine_traits.hpp>
+#include "concepts.hpp"
+#include "traits/state_machine_traits.hpp"
 
 #include <utility>
 

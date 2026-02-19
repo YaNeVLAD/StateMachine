@@ -24,7 +24,7 @@ add_custom_command(
 target_link_libraries(
         fsm-tests PRIVATE
         GTest::gtest_main
-        state_machine
+        FSM
 )
 include(GoogleTest)
 

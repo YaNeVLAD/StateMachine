@@ -6,8 +6,8 @@
 #include <string>
 #include <vector>
 
-#include <converter.hpp>
-#include <recognizer.hpp>
+#include "converter.hpp"
+#include "recognizer.hpp"
 
 namespace fsm
 {

@@ -7,10 +7,10 @@
 #include <string>
 #include <utility>
 
-#include <base_state_machine.hpp>
-#include <default_translator.hpp>
-#include <dot.hpp>
-#include <labeled.hpp>
+#include "base_state_machine.hpp"
+#include "default_translator.hpp"
+#include "dot.hpp"
+#include "labeled.hpp"
 
 #include "moore/moore_state.hpp"
 #include "moore/moore_state_machine_traits.hpp"

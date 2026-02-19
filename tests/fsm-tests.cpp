@@ -1,5 +1,6 @@
-#include "recognizer.hpp"
 #include <gtest/gtest.h>
+
+#include <fsm/recognizer.hpp>
 
 using namespace fsm;
 
@@ -83,7 +84,8 @@ TEST(Recognizer, FromDotAndToDot)
 	recognizer_state state = SimpleRecognizerState();
 	recognizer r(state);
 	const std::string filename = "res/test_recognizer.dot";
-	r.to_dot(filename);
+	std::ofstream file(filename);
+	dot(file, r);
 	recognizer r2 = recognizer::from_dot(filename);
 	EXPECT_EQ(r2.state().state_ids.size(), 2);
 	remove(filename.c_str());

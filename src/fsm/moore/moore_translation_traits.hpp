@@ -1,8 +1,7 @@
 #ifndef MOORE_TRANSLATION_TRAITS_HPP
 #define MOORE_TRANSLATION_TRAITS_HPP
 
-#include <traits/translation_traits.hpp>
-
+#include "../traits/translation_traits.hpp"
 #include "moore_state.hpp"
 
 namespace fsm

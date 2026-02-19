@@ -1,9 +1,9 @@
 #ifndef MINIMIZATION_HPP
 #define MINIMIZATION_HPP
 
-#include <concepts.hpp>
-#include <traits/minimization_traits.hpp>
-#include <traits/state_machine_traits.hpp>
+#include "concepts.hpp"
+#include "traits/minimization_traits.hpp"
+#include "traits/state_machine_traits.hpp"
 
 #include <map>
 #include <set>

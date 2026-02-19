@@ -1,8 +1,7 @@
 #ifndef MOORE_STATE_MACHINE_TRAITS_HPP
 #define MOORE_STATE_MACHINE_TRAITS_HPP
 
-#include <traits/state_machine_traits.hpp>
-
+#include "../traits/state_machine_traits.hpp"
 #include "moore_state.hpp"
 
 namespace fsm

@@ -1,16 +1,15 @@
 #ifndef RECOGNIZER_HPP
 #define RECOGNIZER_HPP
 
-#include "recognizer.hpp"
-
-#include <base_state_machine.hpp>
-#include <concepts.hpp>
-#include <converter.hpp>
-#include <default_translator.hpp>
-#include <dot.hpp>
-#include <labeled.hpp>
-#include <mealy_machine.hpp>
-#include <moore_machine.hpp>
+#include "base_state_machine.hpp"
+#include "concepts.hpp"
+#include "converter.hpp"
+#include "default_translator.hpp"
+#include "dot.hpp"
+#include "labeled.hpp"
+#include "mealy_machine.hpp"
+#include "moore_machine.hpp"
+#include "traits/minimization_traits.hpp"
 
 #include <concepts>
 #include <fstream>
@@ -18,7 +17,6 @@
 #include <istream>
 #include <map>
 #include <optional>
-#include <ostream>
 #include <queue>
 #include <regex>
 #include <set>
