@@ -628,7 +628,6 @@ inline void dot(std::ostream& os, recognizer const& recognizer)
 
 	os << "}" << std::endl;
 }
-
 } // namespace fsm
 
 #endif // RECOGNIZER_HPP

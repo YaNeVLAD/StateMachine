@@ -1,8 +1,12 @@
 #include <gtest/gtest.h>
 
+#include <fsm/cfg.hpp>
+#include <fsm/integer_symbol_generator.hpp>
 #include <fsm/recognizer.hpp>
+#include <fsm/string_symbol_generator.hpp>
 
 using namespace fsm;
+using namespace fsm::transforms;
 
 recognizer_state SimpleRecognizerState()
 {
@@ -170,4 +174,325 @@ TEST(MealyMachine, HandleInputSequence)
 	const auto out2 = m.handle_input("b");
 	EXPECT_EQ(out2, "out2");
 	EXPECT_EQ(m.state().current_state_id, "s0");
+}
+
+void verify_is_cnf(const cfg& g, const bool allows_epsilon)
+{
+	const auto& start = g.start_symbol();
+	for (const auto& r : g.rules())
+	{
+		// 1. Стартовый символ не должен встречаться в правых частях
+		for (const auto& sym : r.rhs)
+		{
+			EXPECT_NE(sym, start)
+				<< "Rule " << r.lhs << " contains start symbol '" << start << "' on RHS!";
+		}
+
+		// 2. Проверка формы правил
+		if (r.is_epsilon())
+		{
+			EXPECT_TRUE(allows_epsilon && r.lhs == start)
+				<< "Epsilon rule allowed ONLY for start symbol if language contains epsilon. "
+				<< "Found invalid epsilon rule: " << r.lhs << " -> e";
+		}
+		else if (r.rhs.size() == 1)
+		{
+			EXPECT_TRUE(g.is_terminal(r.rhs[0]))
+				<< "Rule of length 1 must map to a terminal! Found: "
+				<< r.lhs << " -> " << r.rhs[0];
+		}
+		else if (r.rhs.size() == 2)
+		{
+			EXPECT_TRUE(g.is_non_terminal(r.rhs[0]) && g.is_non_terminal(r.rhs[1]))
+				<< "Rule of length 2 must map to two non-terminals! Found: "
+				<< r.lhs << " -> " << r.rhs[0] << " " << r.rhs[1];
+		}
+		else
+		{
+			FAIL() << "Rule length > 2 is not allowed in CNF! Found rule length: " << r.rhs.size();
+		}
+	}
+}
+
+// E -> E+E | E*E | (E) | a
+TEST(CFGTransformsTest, Grammar1)
+{
+	const cfg grammar(
+		{ "E" },
+		{ "+", "*", "(", ")", "a" },
+		{ { "E", { "E", "+", "E" } },
+			{ "E", { "E", "*", "E" } },
+			{ "E", { "(", "E", ")" } },
+			{ "E", { "a" } } },
+		"E");
+
+	const cfg cnf = grammar | to_chomsky_normal_form;
+
+	verify_is_cnf(cnf, false);
+}
+
+// S -> aSb | aSc | cSb | e
+TEST(CFGTransformsTest, Grammar2)
+{
+	const cfg grammar(
+		{ "S" },
+		{ "a", "b", "c" },
+		{
+			{ "S", { "a", "S", "b" } },
+			{ "S", { "a", "S", "c" } },
+			{ "S", { "c", "S", "b" } },
+			{ "S", {} } // e-rule
+		},
+		"S");
+
+	const cfg cnf = grammar | to_chomsky_normal_form;
+
+	verify_is_cnf(cnf, true);
+}
+
+// P -> AB | BG
+// A -> aA | e
+// B -> c | bB
+// G -> c | bA
+TEST(CFGTransformsTest, Grammar3)
+{
+	const cfg grammar(
+		{ "P", "A", "B", "G" },
+		{ "a", "b", "c" },
+		{ { "P", { "A", "B" } },
+			{ "P", { "B", "G" } },
+			{ "A", { "a", "A" } },
+			{ "A", {} }, // e-rule
+			{ "B", { "c" } },
+			{ "B", { "b", "B" } },
+			{ "G", { "c" } },
+			{ "G", { "b", "A" } } },
+		"P");
+
+	const cfg cnf = grammar | to_chomsky_normal_form;
+
+	verify_is_cnf(cnf, false);
+}
+
+// S -> abSa | aaAb | b
+// A -> baAb | b
+TEST(CFGTransformsTest, Grammar4)
+{
+	const cfg grammar(
+		{ "S", "A" },
+		{ "a", "b" },
+		{ { "S", { "a", "b", "S", "a" } },
+			{ "S", { "a", "a", "A", "b" } },
+			{ "S", { "b" } },
+			{ "A", { "b", "a", "A", "b" } },
+			{ "A", { "b" } } },
+		"S");
+
+	const cfg cnf = grammar | to_chomsky_normal_form;
+
+	verify_is_cnf(cnf, false);
+}
+
+TEST(IntegerSymbolGeneratorLogicTest, FillUpToTypeLimit)
+{
+	using SymbolType = uint8_t;
+	basic_cfg<SymbolType> cfg;
+	integer_symbol_generator<SymbolType> gen;
+
+	for (SymbolType i = 0; i < 250; ++i)
+	{
+		cfg.add_terminal(i);
+	}
+	cfg.set_start_symbol(0);
+
+	const SymbolType start = gen.next_start_symbol(0, cfg.terminals());
+	EXPECT_EQ(start, 250);
+	cfg.add_non_terminal(start);
+
+	EXPECT_EQ(gen.next_intermediate(), 251);
+	EXPECT_EQ(gen.next_intermediate(), 252);
+	EXPECT_EQ(gen.next_intermediate(), 253);
+	EXPECT_EQ(gen.next_intermediate(), 254);
+	EXPECT_EQ(gen.next_intermediate(), 255);
+
+	EXPECT_THROW({ gen.next_intermediate(); }, std::overflow_error);
+}
+
+TEST(IntegerSymbolGeneratorLogicTest, RespectExistingMaxSymbol)
+{
+	using SymbolType = int;
+	basic_cfg<SymbolType> cfg;
+	integer_symbol_generator<SymbolType> gen;
+
+	cfg.add_terminal(1);
+	cfg.add_terminal(5000);
+	cfg.add_non_terminal(0);
+
+	std::set<SymbolType> all_symbols = cfg.terminals();
+	all_symbols.insert(cfg.non_terminals().begin(), cfg.non_terminals().end());
+
+	const SymbolType next = gen.next_start_symbol(0, all_symbols);
+
+	EXPECT_EQ(next, 5001);
+}
+
+TEST(IntegerSymbolGeneratorLogicTest, UnsignedInitialization)
+{
+	using SymbolType = unsigned int;
+	integer_symbol_generator<SymbolType> gen;
+
+	const SymbolType next = gen.next_start_symbol(0, {});
+	EXPECT_LT(next, 1000000);
+}
+
+TEST(StringSymbolGeneratorTest, BasicGenerationChar)
+{
+	string_symbol_generator<std::string> gen;
+
+	EXPECT_EQ(gen.next_terminal_proxy("abc"), "T_abc");
+
+	EXPECT_EQ(gen.next_intermediate(), "C_1");
+	EXPECT_EQ(gen.next_intermediate(), "C_2");
+}
+
+TEST(StringSymbolGeneratorTest, StartSymbolCollision)
+{
+	string_symbol_generator<std::string> gen;
+	const std::string old_start = "S";
+
+	const std::set<std::string> nts = { "S'", "S''" };
+
+	const std::string new_start = gen.next_start_symbol(old_start, nts);
+	EXPECT_EQ(new_start, "S'''");
+}
+
+TEST(StringSymbolGeneratorTest, WideStringSupport)
+{
+	string_symbol_generator<std::wstring> gen;
+
+	EXPECT_EQ(gen.next_terminal_proxy(L"x"), L"T_x");
+
+	EXPECT_EQ(gen.next_intermediate(), L"C_1");
+}
+
+TEST(StringSymbolGeneratorTest, UTF8Support)
+{
+	string_symbol_generator<std::u8string> gen;
+
+	EXPECT_EQ(gen.next_terminal_proxy(u8"id"), u8"T_id");
+	EXPECT_EQ(gen.next_intermediate(), u8"C_1");
+}
+
+TEST(StringSymbolGeneratorTest, UTF16Support)
+{
+	string_symbol_generator<std::u16string> gen;
+
+	EXPECT_EQ(gen.next_terminal_proxy(u"id"), u"T_id");
+	EXPECT_EQ(gen.next_intermediate(), u"C_1");
+}
+
+TEST(StringSymbolGeneratorTest, UTF32Support)
+{
+	string_symbol_generator<std::u32string> gen;
+
+	EXPECT_EQ(gen.next_terminal_proxy(U"id"), U"T_id");
+	EXPECT_EQ(gen.next_intermediate(), U"C_1");
+}
+
+// E -> E+E | E*E | (E) | a
+// w1 = a+(a+a)
+// w2 = (a+a)*a
+TEST(CYKAlgorithmTest, Grammar1)
+{
+	const cfg grammar(
+		{ "E" },
+		{ "+", "*", "(", ")", "a" },
+		{ { "E", { "E", "+", "E" } },
+			{ "E", { "E", "*", "E" } },
+			{ "E", { "(", "E", ")" } },
+			{ "E", { "a" } } },
+		"E");
+
+	const auto cnf = grammar | to_chomsky_normal_form;
+
+	EXPECT_TRUE(algorithms::cyk(cnf, "a+(a+a)")) << "w1 should belong to the grammar";
+	EXPECT_TRUE(algorithms::cyk(cnf, "(a+a)*a")) << "w2 should belong to the grammar";
+
+	EXPECT_FALSE(algorithms::cyk(cnf, "a+*a")) << "Invalid expression should be rejected";
+}
+
+// S -> aSb | aSc | cSb | e
+// w1 = aaacbbcb
+// w2 = ccaaaccbb
+TEST(CYKAlgorithmTest, Grammar2)
+{
+	const cfg grammar(
+		{ "S" },
+		{ "a", "b", "c" },
+		{
+			{ "S", { "a", "S", "b" } },
+			{ "S", { "a", "S", "c" } },
+			{ "S", { "c", "S", "b" } },
+			{ "S", {} } // e-rule
+		},
+		"S");
+
+	const auto cnf = grammar | to_chomsky_normal_form;
+
+	EXPECT_TRUE(algorithms::cyk(cnf, "aaacbbcb")) << "w1 belongs to the grammar";
+
+	EXPECT_FALSE(algorithms::cyk(cnf, "ccaaaccbb")) << "w2 does NOT belong to the grammar (odd length)";
+}
+
+// P -> AB | BG
+// A -> aA | e
+// B -> c | bB
+// G -> c | bA
+// w1 = bbbcaaa
+// w2 = bbbcbaa
+TEST(CYKAlgorithmTest, Grammar3)
+{
+	const cfg grammar(
+		{ "P", "A", "B", "G" },
+		{ "a", "b", "c" },
+		{ { "P", { "A", "B" } },
+			{ "P", { "B", "G" } },
+			{ "A", { "a", "A" } },
+			{ "A", {} }, // e-правило
+			{ "B", { "c" } },
+			{ "B", { "b", "B" } },
+			{ "G", { "c" } },
+			{ "G", { "b", "A" } } },
+		"P");
+
+	const auto cnf = grammar | to_chomsky_normal_form;
+
+	EXPECT_FALSE(algorithms::cyk(cnf, "bbbcaaa")) << "w1 does NOT belong to the grammar";
+	EXPECT_TRUE(algorithms::cyk(cnf, "bbbcbaa")) << "w2 belongs to the grammar (P => BG => bbbc baa)";
+}
+
+// S -> abSa | aaAb | b
+// A -> baAb | b
+// w1 = abaababbba
+// w2 = aabababbbb
+TEST(CYKAlgorithmTest, Task5_LongRules)
+{
+	const cfg grammar(
+		{ "S", "A" },
+		{ "a", "b" },
+		{ { "S", { "a", "b", "S", "a" } },
+			{ "S", { "a", "a", "A", "b" } },
+			{ "S", { "b" } },
+			{ "A", { "b", "a", "A", "b" } },
+			{ "A", { "b" } } },
+		"S");
+
+	const auto cnf = grammar | to_chomsky_normal_form;
+
+	// w1: S => abSa => ab(aaAb)a => abaa(baAb)ba => abaaba(b)ba = abaababbba
+	// w2: S => aaAb => aa(baAb)b => aaba(baAb)bb => aababa(b)bbb = aabababbbb
+	EXPECT_TRUE(algorithms::cyk(cnf, "abaababbba")) << "w1 belongs to the grammar";
+	EXPECT_TRUE(algorithms::cyk(cnf, "aabababbbb")) << "w2 belongs to the grammar";
+
+	EXPECT_FALSE(algorithms::cyk(cnf, "aba")) << "Invalid word should be rejected";
 }

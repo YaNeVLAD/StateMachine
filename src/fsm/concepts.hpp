@@ -39,6 +39,23 @@ concept container = requires(T container) {
 	container.end();
 };
 
+template <typename T>
+concept is_string_like = std::ranges::common_range<T>
+	&& requires(
+		T str,
+		const typename T::value_type* raw_ptr,
+		const typename T::value_type single_char) {
+		   typename T::value_type;
+
+		   { T(raw_ptr) };
+		   { str += raw_ptr };
+
+		   { str + raw_ptr } -> std::same_as<T>;
+		   { str + str } -> std::same_as<T>;
+
+		   { str += single_char };
+		   { str + single_char } -> std::same_as<T>;
+	   };
 } // namespace fsm::concepts
 
 #endif // STATE_MACHINE_CONCEPT_HPP

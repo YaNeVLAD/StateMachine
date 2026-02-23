@@ -1,6 +1,7 @@
 #ifndef FSM_HPP
 #define FSM_HPP
 
+#include "cfg.hpp"
 #include "converter.hpp"
 #include "dot.hpp"
 #include "lexer.hpp"
