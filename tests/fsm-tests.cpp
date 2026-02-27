@@ -366,6 +366,25 @@ TEST(StringSymbolGeneratorTest, StartSymbolCollision)
 	EXPECT_EQ(new_start, "S'''");
 }
 
+TEST(StringSymbolGeneratorTest, ConstructorArgs)
+{
+	string_symbol_generator<std::string> gen{
+		'_',
+		"Terminal_",
+		"Intermediate_"
+	};
+	const std::string old_start = "S";
+
+	const std::set<std::string> nts = { "S_", "S__" };
+
+	const std::string new_start = gen.next_start_symbol(old_start, nts);
+	EXPECT_EQ(new_start, "S___");
+
+	EXPECT_EQ(gen.next_terminal_proxy("x"), "Terminal_x");
+
+	EXPECT_EQ(gen.next_intermediate(), "Intermediate_1");
+}
+
 TEST(StringSymbolGeneratorTest, WideStringSupport)
 {
 	string_symbol_generator<std::wstring> gen;

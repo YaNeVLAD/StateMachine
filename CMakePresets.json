@@ -5,6 +5,7 @@
       "name": "fsm-tests",
       "displayName": "Build with Tests",
       "binaryDir": "${sourceDir}/cmake-build-tests",
+      "generator": "Ninja",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "FSM_BUILD_TESTS": "ON"
