@@ -1,5 +1,5 @@
-#ifndef FSM_CONTEXT_FREE_GRAMMAR_HPP
-#define FSM_CONTEXT_FREE_GRAMMAR_HPP
+#ifndef FSM_BASIC_CFG_HPP
+#define FSM_BASIC_CFG_HPP
 
 #include <set>
 #include <vector>
@@ -49,8 +49,8 @@ public:
 	basic_cfg() = default;
 
 	basic_cfg(
-		std::set<T_Symbol> non_terminals,
-		std::set<T_Symbol> terminals,
+		symbol_storage_t non_terminals,
+		symbol_storage_t terminals,
 		std::set<rule_type> rules,
 		T_Symbol start_symbol)
 		: m_non_terminals(std::move(non_terminals))
@@ -155,4 +155,4 @@ private:
 };
 } // namespace fsm
 
-#endif // FSM_CONTEXT_FREE_GRAMMAR_HPP
+#endif // FSM_BASIC_CFG_HPP

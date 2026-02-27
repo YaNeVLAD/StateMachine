@@ -1,437 +1,888 @@
 #ifndef FSM_CFG_ALGORITHMS_H
 #define FSM_CFG_ALGORITHMS_H
 
+#include "../concepts.hpp"
 #include "../default_symbol_generator.hpp"
+#include "basic_cfg.hpp"
 
+#include <algorithm>
 #include <ranges>
 
 namespace fsm
 {
-namespace details
+namespace algorithms::impl
 {
-template <typename T_Symbol>
-void generate_combinations(const std::vector<T_Symbol>& rhs,
-	const std::set<T_Symbol>& nullables,
-	const size_t index,
-	std::vector<T_Symbol> current,
-	std::set<std::vector<T_Symbol>>& out)
+class IsolateStartSymbol_fn
 {
-	if (index == rhs.size())
+public:
+	template <typename T_Symbol, typename T_Comp, typename T_Gen>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Comp>
+	operator()(const basic_cfg<T_Symbol, T_Comp>& g, T_Gen& gen) const
 	{
-		out.insert(current);
-		return;
+		auto result = g;
+		auto new_start = gen.next_start_symbol(g.start_symbol(), g.non_terminals());
+
+		result.add_non_terminal(new_start);
+		result.add_rule({ new_start, { g.start_symbol() } });
+		result.set_start_symbol(new_start);
+
+		return result;
 	}
 
-	current.push_back(rhs[index]);
-	generate_combinations(rhs, nullables, index + 1, current, out);
-	current.pop_back();
-
-	if (nullables.contains(rhs[index]))
+	template <typename T_Symbol, typename T_Comp>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Comp>
+	operator()(const basic_cfg<T_Symbol, T_Comp>& g) const
 	{
+		default_symbol_generator<T_Symbol> gen;
+
+		return IsolateStartSymbol_fn::operator()(g, gen);
+	}
+};
+
+class RemoveEpsilonRules_fn
+{
+public:
+	template <typename T_Symbol, typename T_Comp>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Comp>
+	operator()(const basic_cfg<T_Symbol, T_Comp>& g) const
+	{
+		auto nullables = find_nullable_symbols(g);
+
+		auto result = g;
+		result.set_rules(generate_new_rules(g, nullables));
+
+		return result;
+	}
+
+private:
+	template <typename T_Symbol>
+	void generate_combinations(
+		const std::vector<T_Symbol>& rhs,
+		const std::set<T_Symbol>& nullables,
+		const size_t index,
+		std::vector<T_Symbol> current,
+		std::set<std::vector<T_Symbol>>& out) const
+	{
+		if (index == rhs.size())
+		{
+			out.insert(current);
+			return;
+		}
+
+		current.push_back(rhs[index]);
 		generate_combinations(rhs, nullables, index + 1, current, out);
-	}
-}
-} // namespace details
+		current.pop_back();
 
-namespace algorithms
-{
-template <typename T_Grammar, typename T_Gen>
-T_Grammar isolate_start_symbol(const T_Grammar& g, T_Gen& gen)
-{
-	T_Grammar result = g;
-	auto new_start = gen.next_start_symbol(g.start_symbol(), g.non_terminals());
-
-	result.add_non_terminal(new_start);
-	result.add_rule({ new_start, { g.start_symbol() } });
-	result.set_start_symbol(new_start);
-
-	return result;
-}
-
-template <typename T_Grammar>
-T_Grammar isolate_start_symbol(const T_Grammar& g)
-{
-	default_symbol_generator<typename T_Grammar::symbol_type> gen;
-	return isolate_start_symbol(g, gen);
-}
-
-template <typename T_Grammar>
-T_Grammar remove_epsilon_rules(const T_Grammar& g)
-{
-	using rule_type = typename T_Grammar::rule_type;
-	using symbol_type = typename T_Grammar::symbol_type;
-
-	T_Grammar result = g;
-	std::set<symbol_type> nullables;
-	bool changed = true;
-	while (changed)
-	{
-		changed = false;
-		for (const auto& r : result.rules())
+		if (nullables.contains(rhs[index]))
 		{
-			if (!nullables.contains(r.lhs))
+			generate_combinations(rhs, nullables, index + 1, current, out);
+		}
+	}
+
+	template <typename T_Grammar>
+	std::set<typename T_Grammar::rule_type>
+	generate_new_rules(
+		const T_Grammar& grammar,
+		std::set<typename T_Grammar::symbol_type> nullables) const
+	{
+		using rule_type = typename T_Grammar::rule_type;
+		using symbol_type = typename T_Grammar::symbol_type;
+
+		std::set<rule_type> new_rules;
+		for (const auto& r : grammar.rules())
+		{
+			if (r.is_epsilon())
 			{
-				if (r.is_epsilon())
+				continue;
+			}
+
+			std::set<std::vector<symbol_type>> combinations;
+			generate_combinations(r.rhs, nullables, 0, {}, combinations);
+
+			for (const auto& comb : combinations)
+			{
+				if (!comb.empty() || r.lhs == grammar.start_symbol())
 				{
-					nullables.insert(r.lhs);
-					changed = true;
-				}
-				else
-				{
-					bool all_nullable = true;
-					for (const auto& sym : r.rhs)
-					{
-						if (!nullables.contains(sym))
-						{
-							all_nullable = false;
-							break;
-						}
-					}
-					if (all_nullable)
-					{
-						nullables.insert(r.lhs);
-						changed = true;
-					}
+					new_rules.insert({ r.lhs, comb });
 				}
 			}
 		}
+
+		return new_rules;
 	}
 
-	std::set<rule_type> new_rules;
-	for (const auto& r : result.rules())
+	template <typename T_Symbol, typename T_Comp>
+	std::set<T_Symbol> find_nullable_symbols(const basic_cfg<T_Symbol, T_Comp>& g) const
 	{
-		if (r.is_epsilon())
+		std::set<T_Symbol> nullables;
+		bool changed = true;
+		while (changed)
 		{
-			continue;
-		}
-
-		std::set<std::vector<symbol_type>> combinations;
-		details::generate_combinations(r.rhs, nullables, 0, {}, combinations);
-
-		for (const auto& comb : combinations)
-		{
-			if (!comb.empty() || r.lhs == result.start_symbol())
+			changed = false;
+			for (const auto& r : g.rules())
 			{
-				new_rules.insert({ r.lhs, comb });
-			}
-		}
-	}
-	result.set_rules(new_rules);
-	return result;
-}
-
-template <typename T_Grammar>
-T_Grammar remove_unit_rules(const T_Grammar& g)
-{
-	using rule_type = typename T_Grammar::rule_type;
-	using symbol_type = typename T_Grammar::symbol_type;
-
-	T_Grammar result = g;
-	auto rules = result.rules();
-	std::map<symbol_type, std::set<symbol_type>> unit_pairs;
-	for (const auto& nt : result.non_terminals())
-	{
-		unit_pairs[nt].insert(nt);
-	}
-
-	bool changed = true;
-	while (changed)
-	{
-		changed = false;
-		for (const auto& r : rules)
-		{
-			if (r.rhs.size() == 1 && result.is_non_terminal(r.rhs[0]))
-			{
-				const symbol_type& A = r.lhs;
-				const symbol_type& B = r.rhs[0];
-
-				for (auto& targets : unit_pairs | std::views::values)
+				if (nullables.contains(r.lhs))
 				{
-					if (targets.contains(A) && !targets.contains(B))
-					{
-						targets.insert(B);
-						changed = true;
-					}
+					continue;
+				}
+				const bool is_now_nullable = r.is_epsilon()
+					|| std::ranges::all_of(r.rhs, [&](const auto& s) {
+						   return nullables.contains(s);
+					   });
+
+				if (is_now_nullable)
+				{
+					changed = nullables.insert(r.lhs).second;
 				}
 			}
 		}
-	}
 
-	std::set<rule_type> new_rules;
-	for (const auto& [A, targets] : unit_pairs)
+		return nullables;
+	}
+};
+
+class RemoveUnitRules_fn
+{
+public:
+	template <typename T_Symbol, typename T_Comp>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Comp>
+	operator()(const basic_cfg<T_Symbol, T_Comp>& g) const
 	{
-		for (const auto& B : targets)
+		using grammar_type = basic_cfg<T_Symbol, T_Comp>;
+		using rule_type = typename grammar_type::rule_type;
+		using symbol_type = typename grammar_type::symbol_type;
+
+		grammar_type result = g;
+		auto rules = result.rules();
+		std::map<symbol_type, std::set<symbol_type>> unit_pairs;
+		for (const auto& nt : result.non_terminals())
 		{
+			unit_pairs[nt].insert(nt);
+		}
+
+		bool changed = true;
+		while (changed)
+		{
+			changed = false;
 			for (const auto& r : rules)
 			{
-				if (r.lhs == B && !(r.rhs.size() == 1 && result.is_non_terminal(r.rhs[0])))
+				if (r.rhs.size() == 1 && result.is_non_terminal(r.rhs[0]))
 				{
-					new_rules.insert({ A, r.rhs });
+					const symbol_type& A = r.lhs;
+					const symbol_type& B = r.rhs[0];
+
+					for (auto& targets : unit_pairs | std::views::values)
+					{
+						if (targets.contains(A) && !targets.contains(B))
+						{
+							targets.insert(B);
+							changed = true;
+						}
+					}
 				}
 			}
 		}
+
+		std::set<rule_type> new_rules;
+		for (const auto& [A, targets] : unit_pairs)
+		{
+			for (const auto& B : targets)
+			{
+				for (const auto& r : rules)
+				{
+					if (r.lhs == B && !(r.rhs.size() == 1 && result.is_non_terminal(r.rhs[0])))
+					{
+						new_rules.insert({ A, r.rhs });
+					}
+				}
+			}
+		}
+		result.set_rules(new_rules);
+
+		return result;
 	}
-	result.set_rules(new_rules);
 
-	return result;
-}
-
-template <typename T_Grammar>
-T_Grammar remove_useless_symbols(const T_Grammar& g)
-{
-	using rule_type = typename T_Grammar::rule_type;
-	using symbol_type = typename T_Grammar::symbol_type;
-
-	std::set<symbol_type> generating = g.terminals();
-	bool changed = true;
-	while (changed)
+private:
+	template <typename T_Grammar>
+	static bool is_unit_rule(const typename T_Grammar::rule_type& r, const T_Grammar& g)
 	{
-		changed = false;
+		return r.rhs.size() == 1 && g.is_non_terminal(r.rhs[0]);
+	}
+
+	template <typename T_Symbol, typename T_Comp>
+	std::map<T_Symbol, std::set<T_Symbol>>
+	find_unit_pairs(const basic_cfg<T_Symbol, T_Comp>& g) const
+	{
+		std::map<T_Symbol, std::set<T_Symbol>> pairs;
+		for (const auto& nt : g.non_terminals())
+		{
+			pairs[nt].insert(nt);
+		}
+
+		bool changed = true;
+		while (changed)
+		{
+			changed = false;
+			for (const auto& r : g.rules())
+			{
+				if (is_unit_rule(r, g))
+				{
+					for (auto& [lhs, targets] : pairs)
+					{
+						if (targets.contains(r.lhs))
+						{
+							changed |= targets.insert(r.rhs[0]).second;
+						}
+					}
+				}
+			}
+		}
+
+		return pairs;
+	}
+};
+
+class RemoveUselessSymbols_fn
+{
+public:
+	template <typename T_Symbol, typename T_Comp>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Comp>
+	operator()(const basic_cfg<T_Symbol, T_Comp>& g) const
+	{
+		auto generating = find_generating(g);
+		auto reachable = find_reachable(g, generating);
+
+		return filter_grammar(g, generating, reachable);
+	}
+
+private:
+	template <typename T_Symbol, typename T_Comp>
+	std::set<T_Symbol> find_generating(const basic_cfg<T_Symbol, T_Comp>& g) const
+	{
+		std::set<T_Symbol> gen = g.terminals();
+		bool changed = true;
+		while (changed)
+		{
+			changed = false;
+			for (const auto& r : g.rules())
+			{
+				if (gen.contains(r.lhs))
+				{
+					continue;
+				}
+				if (std::ranges::all_of(r.rhs, [&](const auto& s) { return gen.contains(s); }))
+				{
+					changed |= gen.insert(r.lhs).second;
+				}
+			}
+		}
+
+		return gen;
+	}
+
+	template <typename T_Symbol, typename T_Comp>
+	std::set<T_Symbol> find_reachable(
+		const basic_cfg<T_Symbol, T_Comp>& g,
+		const std::set<T_Symbol>& gen) const
+	{
+		std::set<T_Symbol> reach = { g.start_symbol() };
+		bool changed = true;
+		while (changed)
+		{
+			changed = false;
+			for (const auto& r : g.rules())
+			{
+				if (reach.contains(r.lhs)
+					&& std::ranges::all_of(r.rhs, [&](const auto& s) { return gen.contains(s); }))
+				{
+					for (const auto& s : r.rhs)
+					{
+						changed |= reach.insert(s).second;
+					}
+				}
+			}
+		}
+
+		return reach;
+	}
+
+	template <typename T_Symbol, typename T_Comp>
+	basic_cfg<T_Symbol, T_Comp>
+	filter_grammar(
+		const basic_cfg<T_Symbol, T_Comp>& g,
+		const std::set<T_Symbol>& gen,
+		const std::set<T_Symbol>& reach) const
+	{
+		basic_cfg<T_Symbol, T_Comp> res;
+		res.set_start_symbol(g.start_symbol());
+		for (const auto& t : g.terminals())
+		{
+			if (reach.contains(t))
+			{
+				res.add_terminal(t);
+			}
+		}
+		for (const auto& nt : g.non_terminals())
+		{
+			if (reach.contains(nt) && gen.contains(nt))
+			{
+				res.add_non_terminal(nt);
+			}
+		}
 		for (const auto& r : g.rules())
 		{
-			if (!generating.contains(r.lhs))
+			const bool ok = reach.contains(r.lhs)
+				&& std::ranges::all_of(r.rhs, [&](const auto& s) {
+					   return reach.contains(s) && (g.is_terminal(s) || gen.contains(s));
+				   });
+
+			if (ok)
 			{
-				bool all_gen = true;
-				for (const auto& sym : r.rhs)
-				{
-					if (!generating.contains(sym))
-					{
-						all_gen = false;
-						break;
-					}
-				}
-				if (all_gen)
-				{
-					generating.insert(r.lhs);
-					changed = true;
-				}
+				res.add_rule(r);
 			}
 		}
+
+		return res;
 	}
+};
 
-	std::set<rule_type> gen_rules;
-	for (const auto& r : g.rules())
-	{
-		bool ok = generating.contains(r.lhs);
-		for (const auto& sym : r.rhs)
-			if (!generating.contains(sym))
-				ok = false;
-		if (ok)
-			gen_rules.insert(r);
-	}
-
-	std::set<symbol_type> reachable = { g.start_symbol() };
-	changed = true;
-	while (changed)
-	{
-		changed = false;
-		for (const auto& r : gen_rules)
-		{
-			if (reachable.contains(r.lhs))
-			{
-				for (const auto& sym : r.rhs)
-				{
-					if (!reachable.contains(sym))
-					{
-						reachable.insert(sym);
-						changed = true;
-					}
-				}
-			}
-		}
-	}
-
-	T_Grammar result;
-	result.set_start_symbol(g.start_symbol());
-	for (const auto& t : g.terminals())
-	{
-		if (reachable.contains(t))
-		{
-			result.add_terminal(t);
-		}
-	}
-
-	for (const auto& nt : g.non_terminals())
-	{
-		if (reachable.contains(nt) && generating.contains(nt))
-		{
-			result.add_non_terminal(nt);
-		}
-	}
-
-	for (const auto& r : gen_rules)
-	{
-		bool ok = reachable.contains(r.lhs);
-		for (const auto& sym : r.rhs)
-		{
-			if (!reachable.contains(sym))
-			{
-				ok = false;
-			}
-		}
-		if (ok)
-		{
-			result.add_rule(r);
-		}
-	}
-
-	return result;
-}
-
-template <typename T_Grammar, typename T_Gen>
-T_Grammar to_chomsky_normal_form(const T_Grammar& original_g, T_Gen& gen)
+class MergeEquivalentSymbols_fn
 {
-	using rule_type = typename T_Grammar::rule_type;
-	using symbol_type = typename T_Grammar::symbol_type;
-
-	T_Grammar g = isolate_start_symbol(original_g, gen);
-	g = remove_epsilon_rules(g);
-	g = remove_unit_rules(g);
-	g = remove_useless_symbols(g);
-
-	T_Grammar cnf = g;
-	std::set<rule_type> current_rules = cnf.rules();
-	cnf.clear_rules();
-
-	std::map<symbol_type, symbol_type> term_to_nt;
-
-	for (const auto& r : current_rules)
+public:
+	template <typename T_Symbol, typename T_Comp>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Comp>
+	operator()(const basic_cfg<T_Symbol, T_Comp>& g) const
 	{
-		if (r.is_epsilon())
+		auto result = g;
+		while (true)
 		{
-			cnf.add_rule(r);
-			continue;
-		}
-
-		if (r.rhs.size() == 1 && cnf.is_terminal(r.rhs[0]))
-		{
-			cnf.add_rule(r);
-			continue;
-		}
-
-		std::vector<symbol_type> binarized_rhs;
-		for (const auto& sym : r.rhs)
-		{
-			if (cnf.is_terminal(sym))
+			auto replacement_map = find_replacements(result);
+			if (replacement_map.empty())
 			{
-				if (!term_to_nt.contains(sym))
+				break;
+			}
+			result = apply_replacements(result, replacement_map);
+		}
+
+		return result;
+	}
+
+private:
+	template <typename T_Symbol, typename T_Comp>
+	std::map<T_Symbol, T_Symbol> find_replacements(const basic_cfg<T_Symbol, T_Comp>& g) const
+	{
+		std::map<T_Symbol, std::set<std::vector<T_Symbol>>> prods;
+		for (const auto& r : g.rules())
+		{
+			prods[r.lhs].insert(r.rhs);
+		}
+
+		std::map<std::set<std::vector<T_Symbol>>, std::vector<T_Symbol>> groups;
+		for (const auto& nt : g.non_terminals())
+		{
+			groups[prods[nt]].push_back(nt);
+		}
+
+		std::map<T_Symbol, T_Symbol> remap;
+		for (const auto& [rhs_set, lhs_list] : groups)
+		{
+			if (lhs_list.size() <= 1)
+			{
+				continue;
+			}
+			T_Symbol survivor = lhs_list[0];
+			for (const auto& s : lhs_list)
+			{
+				if (s == g.start_symbol())
 				{
-					symbol_type new_nt = gen.next_terminal_proxy(sym);
-					term_to_nt[sym] = new_nt;
-					cnf.add_non_terminal(new_nt);
-					cnf.add_rule({ new_nt, { sym } });
+					survivor = s;
 				}
-				binarized_rhs.push_back(term_to_nt[sym]);
+			}
+			for (const auto& v : lhs_list)
+			{
+				if (v != survivor)
+				{
+					remap[v] = survivor;
+				}
+			}
+		}
+
+		return remap;
+	}
+
+	template <typename T_Symbol, typename T_Comp>
+	basic_cfg<T_Symbol, T_Comp> apply_replacements(
+		const basic_cfg<T_Symbol, T_Comp>& g,
+		const std::map<T_Symbol, T_Symbol>& remap) const
+	{
+		basic_cfg<T_Symbol, T_Comp> next;
+		auto fix = [&](const T_Symbol& s) { return remap.contains(s) ? remap.at(s) : s; };
+		next.set_start_symbol(fix(g.start_symbol()));
+
+		for (const auto& t : g.terminals())
+		{
+			next.add_terminal(t);
+		}
+		for (const auto& nt : g.non_terminals())
+		{
+			if (!remap.contains(nt))
+			{
+				next.add_non_terminal(nt);
+			}
+		}
+		for (const auto& r : g.rules())
+		{
+			if (remap.contains(r.lhs))
+			{
+				continue;
+			}
+			auto new_rhs = r.rhs;
+			for (auto& s : new_rhs)
+			{
+				s = fix(s);
+			}
+			next.add_rule({ r.lhs, new_rhs });
+		}
+
+		return next;
+	}
+};
+
+class ChomskyNormalForm_fn
+{
+public:
+	template <typename T_Symbol, typename T_Comp, typename T_Gen>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Comp>
+	operator()(const basic_cfg<T_Symbol, T_Comp>& g, T_Gen& gen) const
+	{
+		auto cnf = prepare_grammar(g, gen);
+		auto current_rules = cnf.rules();
+		cnf.clear_rules();
+
+		std::map<T_Symbol, T_Symbol> term_to_nt{};
+		for (const auto& r : current_rules)
+		{
+			process_rule(r, cnf, gen, term_to_nt);
+		}
+		return cnf;
+	}
+
+	template <typename T_Symbol, typename T_Comp>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Comp>
+	operator()(const basic_cfg<T_Symbol, T_Comp>& g) const
+	{
+		default_symbol_generator<T_Symbol> gen;
+		return operator()(g, gen);
+	}
+
+private:
+	template <typename T_Grammar, typename T_Gen>
+	T_Grammar prepare_grammar(const T_Grammar& g, T_Gen& gen) const
+	{
+		auto res = IsolateStartSymbol_fn{}(g, gen);
+		res = RemoveEpsilonRules_fn{}(res);
+		res = RemoveUnitRules_fn{}(res);
+
+		return RemoveUselessSymbols_fn{}(res);
+	}
+
+	template <typename T_Rule, typename T_Grammar, typename T_Gen, typename T_Map>
+	void process_rule(const T_Rule& r, T_Grammar& cnf, T_Gen& gen, T_Map& tmap) const
+	{
+		if (r.is_epsilon() || (r.rhs.size() == 1 && cnf.is_terminal(r.rhs[0])))
+		{
+			cnf.add_rule(r);
+			return;
+		}
+
+		std::vector<typename T_Grammar::symbol_type> binarized;
+		for (const auto& s : r.rhs)
+		{
+			if (cnf.is_terminal(s))
+			{
+				if (!tmap.contains(s))
+				{
+					auto nt = gen.next_terminal_proxy(s);
+					cnf.add_non_terminal(nt);
+					cnf.add_rule({ nt, { s } });
+					tmap[s] = nt;
+				}
+				binarized.push_back(tmap[s]);
 			}
 			else
 			{
-				binarized_rhs.push_back(sym);
+				binarized.push_back(s);
 			}
 		}
 
-		if (binarized_rhs.size() == 1)
+		if (binarized.size() <= 2)
 		{
-			cnf.add_rule({ r.lhs, { binarized_rhs[0] } });
-			continue;
+			cnf.add_rule({ r.lhs, binarized });
+			return;
 		}
 
-		symbol_type current_lhs = r.lhs;
-		for (size_t i = 0; i + 2 < binarized_rhs.size(); ++i)
+		auto curr_lhs = r.lhs;
+		for (size_t i = 0; i + 2 < binarized.size(); ++i)
 		{
-			symbol_type next_nt = gen.next_intermediate();
+			auto next_nt = gen.next_intermediate();
 			cnf.add_non_terminal(next_nt);
-			cnf.add_rule({ current_lhs, { binarized_rhs[i], next_nt } });
-			current_lhs = next_nt;
+			cnf.add_rule({ curr_lhs, { binarized[i], next_nt } });
+			curr_lhs = next_nt;
 		}
-
-		cnf.add_rule({ current_lhs, { binarized_rhs[binarized_rhs.size() - 2], binarized_rhs.back() } });
+		cnf.add_rule({ curr_lhs, { binarized[binarized.size() - 2], binarized.back() } });
 	}
+};
 
-	return cnf;
-}
-
-template <typename T_Grammar>
-T_Grammar to_chomsky_normal_form(const T_Grammar& original_g)
+template <typename T_Symbol>
+struct ParseTreeNode
 {
-	default_symbol_generator<typename T_Grammar::symbol_type> gen;
-	return to_chomsky_normal_form(original_g, gen);
-}
+	T_Symbol symbol;
+	std::vector<std::shared_ptr<ParseTreeNode>> children;
 
-template <typename T_Grammar>
-bool cyk(const T_Grammar& cnf_grammar, const std::vector<typename T_Grammar::symbol_type>& word)
-{
-	using symbol_type = typename T_Grammar::symbol_type;
-
-	const size_t n = word.size();
-
-	if (n == 0)
+	[[nodiscard]] std::string to_string() const
 	{
-		for (const auto& r : cnf_grammar.rules())
+		if (children.empty())
 		{
-			if (r.lhs == cnf_grammar.start_symbol() && r.is_epsilon())
+			return "ε";
+		}
+		std::stringstream ss;
+		ss << "(" << symbol;
+		for (const auto& child : children)
+		{
+			if (child->children.empty())
 			{
-				return true;
+				ss << " " << child->symbol;
+			}
+			else
+			{
+				ss << " " << child->to_string();
 			}
 		}
-		return false;
-	}
+		ss << ")";
 
-	// terminal_rules: a -> {A, B...}
-	std::map<symbol_type, std::set<symbol_type>> terminal_rules;
-	// non_terminal_rules: (B, C) -> {A, S...}
-	std::map<std::pair<symbol_type, symbol_type>, std::set<symbol_type>> non_terminal_rules;
-
-	for (const auto& r : cnf_grammar.rules())
-	{
-		if (r.rhs.size() == 1)
-		{
-			terminal_rules[r.rhs[0]].insert(r.lhs);
-		}
-		else if (r.rhs.size() == 2)
-		{
-			non_terminal_rules[{ r.rhs[0], r.rhs[1] }].insert(r.lhs);
-		}
+		return ss.str();
 	}
+};
+
+template <typename T_Symbol>
+struct CykResult
+{
+	bool is_valid = false;
+
+	std::vector<std::shared_ptr<ParseTreeNode<T_Symbol>>> trees;
 
 	// table[start_index][length] = set<non_terminal>
-	std::vector<std::vector<std::set<symbol_type>>> table(
-		n, std::vector<std::set<symbol_type>>(n + 1));
+	std::vector<std::vector<std::set<T_Symbol>>> table;
 
-	for (size_t i = 0; i < n; ++i)
+	explicit operator bool() const { return is_valid; }
+};
+
+class Cyk_fn
+{
+public:
+	template <typename T_Symbol, typename T_Comp>
+	[[nodiscard]] CykResult<T_Symbol>
+	operator()(const basic_cfg<T_Symbol, T_Comp>& g, const std::vector<T_Symbol>& word) const
 	{
-		if (terminal_rules.contains(word[i]))
+		CykResult<T_Symbol> res;
+		const size_t n = word.size();
+		res.table.resize(n, std::vector<std::set<T_Symbol>>(n + 1));
+
+		if (n == 0)
 		{
-			table[i][1] = terminal_rules.at(word[i]);
+			return handle_empty_word(g);
 		}
+
+		auto [term_rules, non_term_rules] = index_rules(g);
+		auto dp = run_cyk_core(word, term_rules, non_term_rules, res.table);
+
+		const auto& S = g.start_symbol();
+		if (dp[0][n].contains(S))
+		{
+			res.is_valid = true;
+			res.trees = build_all_trees(0, n, S, word, dp);
+		}
+
+		return res;
 	}
 
-	for (size_t l = 2; l <= n; ++l)
+	template <concepts::is_string_like T_Str>
+	[[nodiscard]] auto operator()(
+		const basic_cfg<T_Str>& g,
+		const std::type_identity_t<T_Str>& w) const
 	{
-		for (size_t i = 0; i <= n - l; ++i)
+		std::vector<T_Str> v;
+		for (const auto c : w)
 		{
-			for (size_t k = 1; k < l; ++k)
-			{
-				const auto& left_set = table[i][k];
-				const auto& right_set = table[i + k][l - k];
+			v.push_back(T_Str{ c });
+		}
 
-				for (const auto& B : left_set)
+		return (*this)(g, v);
+	}
+
+private:
+	template <typename T>
+	struct Derivation
+	{
+		T B, C;
+		size_t k;
+	};
+
+	template <typename T_Symbol>
+	CykResult<T_Symbol> handle_empty_word(const basic_cfg<T_Symbol>& g) const
+	{
+		CykResult<T_Symbol> res;
+		for (const auto& r : g.rules())
+		{
+			if (r.lhs == g.start_symbol() && r.is_epsilon())
+			{
+				res.is_valid = true;
+				auto root = std::make_shared<ParseTreeNode<T_Symbol>>();
+				root->symbol = r.lhs;
+				res.trees.push_back(root);
+
+				break;
+			}
+		}
+
+		return res;
+	}
+
+	template <typename T_Symbol>
+	auto index_rules(const basic_cfg<T_Symbol>& g) const
+	{
+		std::map<T_Symbol, std::set<T_Symbol>> t_map;
+		std::map<std::pair<T_Symbol, T_Symbol>, std::set<T_Symbol>> nt_map;
+		for (const auto& r : g.rules())
+		{
+			if (r.rhs.size() == 1)
+			{
+				t_map[r.rhs[0]].insert(r.lhs);
+			}
+			else if (r.rhs.size() == 2)
+			{
+				nt_map[{ r.rhs[0], r.rhs[1] }].insert(r.lhs);
+			}
+		}
+
+		return std::make_pair(t_map, nt_map);
+	}
+
+	template <typename T_Symbol>
+	auto run_cyk_core(const std::vector<T_Symbol>& word,
+		const std::map<T_Symbol, std::set<T_Symbol>>& t_rules,
+		const std::map<std::pair<T_Symbol, T_Symbol>, std::set<T_Symbol>>& nt_rules,
+		std::vector<std::vector<std::set<T_Symbol>>>& out_table) const
+	{
+		std::size_t n = word.size();
+		using Cell = std::map<T_Symbol, std::vector<Derivation<T_Symbol>>>;
+		std::vector<std::vector<Cell>> dp(n, std::vector<Cell>(n + 1));
+
+		for (std::size_t i = 0; i < n; ++i)
+		{
+			if (t_rules.contains(word[i]))
+			{
+				for (const auto& A : t_rules.at(word[i]))
 				{
-					for (const auto& C : right_set)
+					dp[i][1][A].push_back({});
+					out_table[i][1].insert(A);
+				}
+			}
+		}
+
+		for (std::size_t l = 2; l <= n; ++l)
+		{
+			for (std::size_t i = 0; i <= n - l; ++i)
+			{
+				for (std::size_t k = 1; k < l; ++k)
+				{
+					for (const auto& [B, _] : dp[i][k])
 					{
-						std::pair<symbol_type, symbol_type> bc_pair = { B, C };
-						if (non_terminal_rules.contains(bc_pair))
+						for (const auto& [C, _1] : dp[i + k][l - k])
 						{
-							const auto& lhs_set = non_terminal_rules.at(bc_pair);
-							table[i][l].insert(lhs_set.begin(), lhs_set.end());
+							if (auto it = nt_rules.find({ B, C }); it != nt_rules.end())
+							{
+								for (const auto& A : it->second)
+								{
+									dp[i][l][A].push_back({ B, C, k });
+									out_table[i][l].insert(A);
+								}
+							}
 						}
 					}
 				}
 			}
 		}
+
+		return dp;
 	}
 
-	return table[0][n].contains(cnf_grammar.start_symbol());
-}
+	template <typename T_Symbol, typename T_DP>
+	auto build_all_trees(
+		std::size_t i, std::size_t l,
+		T_Symbol A,
+		const std::vector<T_Symbol>& word,
+		const T_DP& dp) const
+	{
+		std::vector<std::shared_ptr<ParseTreeNode<T_Symbol>>> sub;
+		if (l == 1)
+		{
+			auto r = std::make_shared<ParseTreeNode<T_Symbol>>(A);
+			r->children.push_back(std::make_shared<ParseTreeNode<T_Symbol>>(word[i]));
+			sub.push_back(r);
+			return sub;
+		}
+		for (const auto& d : dp[i][l].at(A))
+		{
+			auto lefts = build_all_trees(i, d.k, d.B, word, dp);
+			auto rights = build_all_trees(i + d.k, l - d.k, d.C, word, dp);
+			for (auto& lt : lefts)
+			{
+				for (auto& rt : rights)
+				{
+					auto r = std::make_shared<ParseTreeNode<T_Symbol>>(A);
+					r->children = { lt, rt };
+					sub.push_back(r);
+				}
+			}
+		}
+
+		return sub;
+	}
+};
+
+class PrintCykTable_fn
+{
+public:
+	template <typename T_Symbol>
+	void operator()(
+		const CykResult<T_Symbol>& res,
+		const std::vector<T_Symbol>& word,
+		std::ostream& os = std::cout) const
+	{ // TODO: Replace with templated ostream
+		if (res.table.empty())
+		{
+			os << "Table is empty.\n";
+			return;
+		}
+
+		const std::size_t n = word.size();
+		std::size_t cell_w = calculate_width(res, word);
+
+		os << "\nCYK Table (Rows: Length, Cols: Start Index):\n";
+		for (size_t l = n; l >= 1; --l)
+		{
+			os << "Len " << std::setw(2) << l << " |";
+			for (size_t i = 0; i <= n - l; ++i)
+			{
+				print_cell(os, res.table[i][l], cell_w);
+			}
+			os << "\n";
+		}
+
+		os << "       " << std::string((cell_w + 1) * n + 1, '-') << "\nWord:   ";
+		for (const auto& w : word)
+		{
+			std::stringstream ss;
+			ss << w;
+			print_padded(os, ss.str(), cell_w);
+		}
+		os << "|\n";
+	}
+
+	void operator()(
+		const CykResult<std::string>& r,
+		const std::string& w,
+		std::ostream& os = std::cout) const
+	{ // TODO: Replace with templated string type
+		std::vector<std::string> v;
+		for (char c : w)
+		{
+			v.emplace_back(1, c);
+		}
+
+		(*this)(r, v, os);
+	}
+
+private:
+	template <typename T_Symbol>
+	[[nodiscard]] std::size_t calculate_width(
+		const CykResult<T_Symbol>& res,
+		const std::vector<T_Symbol>& word) const
+	{
+		std::size_t m = 3;
+		for (auto& row : res.table)
+			for (auto& s : row)
+			{
+				std::stringstream ss;
+				ss << "{";
+				for (auto it = s.begin(); it != s.end(); ++it)
+				{
+					ss << (it == s.begin() ? "" : ",") << *it;
+				}
+				ss << "}";
+				m = std::max(m, ss.str().length());
+			}
+		for (auto& w : word)
+		{
+			std::stringstream ss;
+			ss << w;
+			m = std::max(m, ss.str().length() + 2);
+		}
+		return m + 2;
+	}
+
+	template <typename T_Char>
+	static void print_padded(
+		std::basic_ostream<T_Char>& os,
+		const std::basic_string<T_Char>& s,
+		const std::size_t w)
+	{
+		const std::size_t p = w - s.length();
+		os << "|" << std::string(p / 2, ' ') << s << std::string(p - p / 2, ' ');
+	}
+
+	template <typename T_Char, typename T_Set>
+	void print_cell(std::basic_ostream<T_Char>& os, const T_Set& s, const std::size_t w) const
+	{
+		std::stringstream ss;
+		ss << "{";
+		for (auto it = s.begin(); it != s.end(); ++it)
+		{
+			ss << (it == s.begin() ? "" : ",") << *it;
+		}
+		ss << "}";
+		const std::string str = ss.str();
+		const std::size_t p = w - str.length();
+		os << std::string(p / 2, ' ') << str << std::string(p - p / 2, ' ') << "|";
+	}
+};
+} // namespace algorithms::impl
+
+namespace algorithms
+{
+
+template <typename T_Symbol>
+using cyk_result = impl::CykResult<T_Symbol>;
+
+template <typename T_Symbol>
+using parse_tree_node = impl::ParseTreeNode<T_Symbol>;
+
+inline constexpr impl::IsolateStartSymbol_fn isolate_start_symbol;
+
+inline constexpr impl::RemoveEpsilonRules_fn remove_epsilon_rules;
+
+inline constexpr impl::RemoveUnitRules_fn remove_unit_rules;
+
+inline constexpr impl::RemoveUselessSymbols_fn remove_useless_symbols;
+
+inline constexpr impl::MergeEquivalentSymbols_fn merge_equivalent_symbols;
+
+inline constexpr impl::ChomskyNormalForm_fn to_chomsky_normal_form;
+
+inline constexpr impl::Cyk_fn cyk;
+
+inline constexpr impl::PrintCykTable_fn print_cyk_table;
 } // namespace algorithms
 } // namespace fsm
 

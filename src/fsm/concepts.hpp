@@ -40,14 +40,18 @@ concept container = requires(T container) {
 };
 
 template <typename T>
+concept has_value_type = requires { typename T::value_type; };
+
+template <typename T>
 concept is_string_like = std::ranges::common_range<T>
+	&& has_value_type<T>
 	&& requires(
 		T str,
 		const typename T::value_type* raw_ptr,
-		const typename T::value_type single_char) {
-		   typename T::value_type;
-
+		const typename T::value_type single_char,
+		std::size_t size) {
 		   { T(raw_ptr) };
+		   { T(raw_ptr, size) };
 		   { str += raw_ptr };
 
 		   { str + raw_ptr } -> std::same_as<T>;

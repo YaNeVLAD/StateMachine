@@ -1,0 +1,8 @@
+S -> A | B | a
+A -> a B | b S
+B -> A B | B a
+B -> A d | B b
+C -> A d | B d | A B | B a | a
+
+ПРАВИЛЬНЫЙ ОТВЕТ
+S -> A | a | b S

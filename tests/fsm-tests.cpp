@@ -458,7 +458,7 @@ TEST(CYKAlgorithmTest, Grammar3)
 		{ { "P", { "A", "B" } },
 			{ "P", { "B", "G" } },
 			{ "A", { "a", "A" } },
-			{ "A", {} }, // e-правило
+			{ "A", {} }, // e-rule
 			{ "B", { "c" } },
 			{ "B", { "b", "B" } },
 			{ "G", { "c" } },
@@ -496,3 +496,53 @@ TEST(CYKAlgorithmTest, Task5_LongRules)
 
 	EXPECT_FALSE(algorithms::cyk(cnf, "aba")) << "Invalid word should be rejected";
 }
+
+#if 0
+
+TEST(CYKTest, LoadFromFile)
+{
+	std::ifstream file("res/cfg_grammar.txt");
+	const auto grammar = cfg_load(file);
+
+	std::cout << "--- Loaded Grammar ---\n";
+	grammar.print();
+
+	const auto cnf = grammar | to_chomsky_normal_form;
+
+	std::cout << "\n--- CNF Grammar ---\n";
+	cnf.print();
+
+	const std::vector<std::string> word = {};
+	const std::string word_str = "bbbcaaa";
+	const auto res = algorithms::cyk(cnf, word_str);
+	algorithms::print_cyk_table(res, word_str);
+
+	if (res)
+	{
+		std::cout << "\nWord is VALID.\n";
+	}
+	else
+	{
+		std::cout << "\nWord is INVALID.\n";
+	}
+}
+
+TEST(CFGTest, LoadFromFile)
+{
+	std::ifstream file("res/cfg_grammar.txt");
+	const auto grammar = cfg_load(file);
+
+	std::cout << "--- Loaded Grammar ---\n";
+	grammar.print();
+
+	const auto reduced = grammar
+		| remove_epsilon_rules
+		| remove_unit_rules
+		| remove_useless_symbols
+		| merge_equivalent_symbols;
+
+	std::cout << "--- Reduced grammar ---\n";
+	reduced.print();
+}
+
+#endif
