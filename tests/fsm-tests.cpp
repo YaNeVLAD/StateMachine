@@ -522,10 +522,11 @@ TEST(CYKAlgorithmTest, Task5_LongRules)
 // C -> A d | a
 TEST(CFGTest, ReduceGrammar)
 {
-	std::string grammar_str = "S -> A | B | a\n"
-							  "A -> a B | b S\n"
-							  "B -> A B | B a | B b\n"
-							  "C -> A d | a\n";
+	std::string grammar_str
+		= "S -> A | B | a\n"
+		  "A -> a B | b S\n"
+		  "B -> A B | B a | B b\n"
+		  "C -> A d | a\n";
 
 	std::stringstream ss(grammar_str);
 
@@ -538,6 +539,33 @@ TEST(CFGTest, ReduceGrammar)
 
 	std::cout << "\n--- Reduced Grammar ---\n";
 	reduced.print();
+}
+
+// E -> E + T | T
+// T -> T * F | F
+// F -> ( E ) | id
+TEST(CFGTest, LeftRecursionElimination)
+{
+	const cfg grammar(
+		{ "E", "T", "F" },
+		{ "+", "*", "id", "(", ")" },
+		{ { "E", { "E", "+", "T" } },
+			{ "E", { "T" } },
+			{ "T", { "T", "*", "F" } },
+			{ "T", { "F" } },
+			{ "F", { "(", "E", ")" } },
+			{ "F", { "id" } } },
+		"E");
+
+	std::cout << "--- Original Grammar ---\n";
+	grammar.print();
+
+	const auto top_down_ready = grammar
+		| reduce_grammar
+		| remove_left_recursion;
+
+	std::cout << "\n--- Without Left Recursion ---\n";
+	top_down_ready.print();
 }
 
 #if 0

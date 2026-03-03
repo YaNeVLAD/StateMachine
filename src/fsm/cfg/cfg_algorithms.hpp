@@ -867,12 +867,146 @@ public:
 	{
 		auto result = grammar;
 
-		result = RemoveEpsilonRules_fn{}(result);
+		// result = RemoveEpsilonRules_fn{}(result);
 		result = RemoveUnitRules_fn{}(result);
 		result = RemoveUselessSymbols_fn{}(result);
+		result = MergeEquivalentSymbols_fn{}(result);
 
 		return result;
 	}
+};
+
+class RemoveLeftRecursion_fn
+{
+public:
+	template <typename T_Symbol, typename T_Cmp, typename T_Gen>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Cmp>
+	operator()(const basic_cfg<T_Symbol, T_Cmp>& grammar, T_Gen& gen) const
+	{
+		using symbol_type = T_Symbol;
+
+		auto result = grammar;
+		result.clear_rules();
+
+		std::vector<symbol_type> non_terminals(
+			grammar.non_terminals().begin(),
+			grammar.non_terminals().end());
+
+		std::map<symbol_type, std::vector<std::vector<symbol_type>>> current_rules;
+		for (const auto& r : grammar.rules())
+		{
+			current_rules[r.lhs].push_back(r.rhs);
+		}
+
+		for (std::size_t i = 0; i < non_terminals.size(); ++i)
+		{
+			symbol_type Ai = non_terminals[i];
+
+			for (std::size_t j = 0; j < i; ++j)
+			{
+				symbol_type Aj = non_terminals[j];
+				std::vector<std::vector<symbol_type>> new_Ai_rules;
+
+				for (const auto& rhs : current_rules[Ai])
+				{
+					if (!rhs.empty() && rhs[0] == Aj)
+					{
+						std::vector<symbol_type> gamma(rhs.begin() + 1, rhs.end());
+
+						for (const auto& delta : current_rules[Aj])
+						{
+							std::vector<symbol_type> combined = delta;
+							combined.insert(combined.end(), gamma.begin(), gamma.end());
+							new_Ai_rules.push_back(combined);
+						}
+					}
+					else
+					{
+						new_Ai_rules.push_back(rhs);
+					}
+				}
+				current_rules[Ai] = std::move(new_Ai_rules);
+			}
+
+			std::vector<std::vector<symbol_type>> alphas;
+			std::vector<std::vector<symbol_type>> betas;
+
+			for (const auto& rhs : current_rules[Ai])
+			{
+				if (!rhs.empty() && rhs[0] == Ai)
+				{
+					// Ai -> Ai alpha
+					alphas.push_back(std::vector<symbol_type>(rhs.begin() + 1, rhs.end()));
+				}
+				else
+				{
+					// Ai -> beta
+					betas.push_back(rhs);
+				}
+			}
+
+			if (!alphas.empty())
+			{
+				symbol_type Ai_prime = gen.next_intermediate();
+				result.add_non_terminal(Ai_prime);
+
+				std::vector<std::vector<symbol_type>> new_Ai_rules;
+
+				if (betas.empty())
+				{
+					betas.push_back({});
+				}
+
+				// Ai -> beta Ai'
+				for (const auto& beta : betas)
+				{
+					std::vector<symbol_type> new_rhs = beta;
+					new_rhs.push_back(Ai_prime);
+					new_Ai_rules.push_back(new_rhs);
+				}
+				current_rules[Ai] = std::move(new_Ai_rules);
+
+				// Ai' -> alpha Ai' | ε
+				for (const auto& alpha : alphas)
+				{
+					std::vector<symbol_type> new_rhs = alpha;
+					new_rhs.push_back(Ai_prime);
+					current_rules[Ai_prime].push_back(new_rhs);
+				}
+				current_rules[Ai_prime].push_back({});
+			}
+		}
+
+		result.set_start_symbol(grammar.start_symbol());
+		for (const auto& t : grammar.terminals())
+		{
+			result.add_terminal(t);
+		}
+		for (const auto& nt : grammar.non_terminals())
+		{
+			result.add_non_terminal(nt);
+		}
+
+		for (const auto& [lhs, rhs] : current_rules)
+		{
+			for (const auto& symbol : rhs)
+			{
+				result.add_rule({ lhs, symbol });
+			}
+		}
+
+		return result;
+	}
+
+	template <typename T_Symbol, typename T_Cmp>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Cmp>
+	operator()(const basic_cfg<T_Symbol, T_Cmp>& grammar) const
+	{
+		default_symbol_generator<T_Symbol> gen;
+		return operator()(grammar, gen);
+	}
+
+private:
 };
 
 } // namespace algorithms::impl
@@ -897,6 +1031,8 @@ inline constexpr impl::RemoveUselessSymbols_fn remove_useless_symbols;
 inline constexpr impl::MergeEquivalentSymbols_fn merge_equivalent_symbols;
 
 inline constexpr impl::ReduceGrammar_fn reduce_grammar;
+
+inline constexpr impl::RemoveLeftRecursion_fn remove_left_recursion;
 
 inline constexpr impl::ChomskyNormalForm_fn to_chomsky_normal_form;
 
