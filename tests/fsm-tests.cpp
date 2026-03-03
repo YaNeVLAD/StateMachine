@@ -516,6 +516,30 @@ TEST(CYKAlgorithmTest, Task5_LongRules)
 	EXPECT_FALSE(algorithms::cyk(cnf, "aba")) << "Invalid word should be rejected";
 }
 
+// S -> A | B | a
+// A -> a B | b S
+// B -> A B | B a | B b
+// C -> A d | a
+TEST(CFGTest, ReduceGrammar)
+{
+	std::string grammar_str = "S -> A | B | a\n"
+							  "A -> a B | b S\n"
+							  "B -> A B | B a | B b\n"
+							  "C -> A d | a\n";
+
+	std::stringstream ss(grammar_str);
+
+	const auto grammar = cfg_load(ss);
+
+	std::cout << "--- Original Grammar ---\n";
+	grammar.print();
+
+	const auto reduced = grammar | reduce_grammar;
+
+	std::cout << "\n--- Reduced Grammar ---\n";
+	reduced.print();
+}
+
 #if 0
 
 TEST(CYKTest, LoadFromFile)

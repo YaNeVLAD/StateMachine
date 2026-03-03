@@ -30,12 +30,23 @@ struct merge_equivalent_symbols_t
 {
 };
 
+struct reduce_grammar_t
+{
+};
+
 inline constexpr isolate_start_symbol_t isolate_start_symbol{};
+
 inline constexpr remove_epsilon_rules_t remove_epsilon_rules{};
+
 inline constexpr remove_unit_rules_t remove_unit_rules{};
+
 inline constexpr remove_useless_symbols_t remove_useless_symbols{};
+
 inline constexpr to_chomsky_normal_form_t to_chomsky_normal_form{};
+
 inline constexpr merge_equivalent_symbols_t merge_equivalent_symbols{};
+
+inline constexpr reduce_grammar_t reduce_grammar{};
 
 template <typename T_Symbol, typename T_Comp>
 basic_cfg<T_Symbol, T_Comp> operator|(const basic_cfg<T_Symbol, T_Comp>& grammar, isolate_start_symbol_t)
@@ -71,6 +82,12 @@ template <typename T_Symbol, typename T_Comp>
 basic_cfg<T_Symbol, T_Comp> operator|(const basic_cfg<T_Symbol, T_Comp>& grammar, merge_equivalent_symbols_t)
 {
 	return algorithms::merge_equivalent_symbols(grammar);
+}
+
+template <typename T_Symbol, typename T_Comp>
+basic_cfg<T_Symbol, T_Comp> operator|(const basic_cfg<T_Symbol, T_Comp>& grammar, reduce_grammar_t)
+{
+	return algorithms::reduce_grammar(grammar);
 }
 } // namespace fsm::transforms
 

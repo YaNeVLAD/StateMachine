@@ -857,6 +857,24 @@ private:
 		os << std::string(p / 2, ' ') << str << std::string(p - p / 2, ' ') << "|";
 	}
 };
+
+class ReduceGrammar_fn
+{
+public:
+	template <typename T_Symbol, typename T_Cmp>
+	[[nodiscard]] basic_cfg<T_Symbol, T_Cmp>
+	operator()(const basic_cfg<T_Symbol, T_Cmp>& grammar) const
+	{
+		auto result = grammar;
+
+		result = RemoveEpsilonRules_fn{}(result);
+		result = RemoveUnitRules_fn{}(result);
+		result = RemoveUselessSymbols_fn{}(result);
+
+		return result;
+	}
+};
+
 } // namespace algorithms::impl
 
 namespace algorithms
@@ -877,6 +895,8 @@ inline constexpr impl::RemoveUnitRules_fn remove_unit_rules;
 inline constexpr impl::RemoveUselessSymbols_fn remove_useless_symbols;
 
 inline constexpr impl::MergeEquivalentSymbols_fn merge_equivalent_symbols;
+
+inline constexpr impl::ReduceGrammar_fn reduce_grammar;
 
 inline constexpr impl::ChomskyNormalForm_fn to_chomsky_normal_form;
 

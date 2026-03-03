@@ -29,7 +29,7 @@ public:
 	struct rule
 	{
 		T_TokenType type;
-		fsm::recognizer machine;
+		recognizer machine;
 
 		bool skip{};
 		size_t priority{};
@@ -51,9 +51,9 @@ public:
 		T_TokenType type,
 		const bool skip = false)
 	{
-		fsm::regex regex(expression);
+		regex regex(expression);
 		auto nfa = regex.compile();
-		auto min_dfa = fsm::minimize(fsm::determinize(nfa));
+		auto min_dfa = minimize(determinize(nfa));
 
 		m_rules.emplace_back(type, std::move(min_dfa), skip, m_rules.size());
 
@@ -173,17 +173,14 @@ private:
 		const rule* best_rule = nullptr;
 		size_t max_len = 0;
 
-		// Перебираем все правила (в идеале это можно оптимизировать через объединенный автомат)
+		// TODO: Merge rules' recognizers to one to fold the cycle
 		for (const auto& rule : m_rules)
 		{
 			size_t current_len = 0;
 			size_t last_final_len = 0;
-			bool reached_dead_end = false;
 
-			// Создаем копию машины для симуляции прохода
-			// (Важно: recognizer должен быть cheap-to-copy или использовать COW,
-			// иначе здесь будет просадка по performance. В рамках текущей реализации копируем)
-			fsm::recognizer machine_run = rule.machine;
+			// TODO: Optimize recognizer copy constructor
+			recognizer machine_run = rule.machine;
 
 			for (size_t i = m_cursor; i < m_source.length(); ++i)
 			{
@@ -202,7 +199,6 @@ private:
 				}
 				catch (...)
 				{
-					reached_dead_end = true;
 					break;
 				}
 			}
