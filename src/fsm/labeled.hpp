@@ -20,8 +20,8 @@ public:
 	}
 
 	template <typename T_Value>
-	labeled(T_Value&& value)
-		: m_value{ std::forward<T_Value>(value) }
+	labeled(T_Value value)
+		: m_value{ std::move(value) }
 	{
 	}
 

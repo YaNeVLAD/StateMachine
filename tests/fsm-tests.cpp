@@ -2,6 +2,7 @@
 
 #include <fsm/cfg.hpp>
 #include <fsm/integer_symbol_generator.hpp>
+#include <fsm/ll1/table.hpp>
 #include <fsm/recognizer.hpp>
 #include <fsm/string_symbol_generator.hpp>
 
@@ -566,6 +567,77 @@ TEST(CFGTest, LeftRecursionElimination)
 
 	std::cout << "\n--- Without Left Recursion ---\n";
 	top_down_ready.print();
+}
+
+// S -> a B S | b
+// B -> c | ε
+TEST(LL1TableTest, BuildValidTable)
+{
+	basic_cfg<std::string> g(
+		{ "S", "B" },
+		{ "a", "b", "c" },
+		{ { "S", { "a", "B", "S" } },
+			{ "S", { "b" } },
+			{ "B", { "c" } },
+			{ "B", {} } },
+		"S");
+
+	auto table = ll1::table<std::string>(g, "ε", "$");
+
+	// S rules
+	ASSERT_TRUE(table.has_rule("S", "a"));
+	EXPECT_EQ(table.get_rule("S", "a").rhs[0], "a"); // M[S, a] = S -> a B S
+
+	ASSERT_TRUE(table.has_rule("S", "b"));
+	EXPECT_EQ(table.get_rule("S", "b").rhs[0], "b"); // M[S, b] = S -> b
+
+	// B rules
+	ASSERT_TRUE(table.has_rule("B", "c"));
+	EXPECT_EQ(table.get_rule("B", "c").rhs[0], "c"); // M[B, c] = B -> c
+
+	// B -> ε applies for symbols from FOLLOW(B) = {a, b}
+	ASSERT_TRUE(table.has_rule("B", "a"));
+	EXPECT_TRUE(table.get_rule("B", "a").is_epsilon()); // M[B, a] = B -> ε
+
+	ASSERT_TRUE(table.has_rule("B", "b"));
+	EXPECT_TRUE(table.get_rule("B", "b").is_epsilon()); // M[B, b] = B -> ε
+}
+
+// FIRST/FIRST Conflict:
+// S -> a | a b
+TEST(LL1TableTest, CollisionFirstFirst)
+{
+	basic_cfg<std::string> g(
+		{ "S" },
+		{ "a", "b" },
+		{ { "S", { "a" } },
+			{ "S", { "a", "b" } } },
+		"S");
+
+	EXPECT_THROW(
+		{
+			auto table = ll1::table<std::string>(g, "ε", "$");
+		},
+		std::runtime_error);
+}
+
+// Left recursion grammar:
+// E -> E + T | T
+TEST(LL1TableTest, CollisionLeftRecursion)
+{
+	basic_cfg<std::string> g(
+		{ "E", "T" },
+		{ "+", "id" },
+		{ { "E", { "E", "+", "T" } },
+			{ "E", { "T" } },
+			{ "T", { "id" } } },
+		"E");
+
+	EXPECT_THROW(
+		{
+			auto table = ll1::table<std::string>(g, "ε", "$");
+		},
+		std::runtime_error);
 }
 
 #if 0
