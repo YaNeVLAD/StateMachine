@@ -605,6 +605,67 @@ TEST(LL1TableTest, BuildValidTable)
 
 // S -> a B S | b
 // B -> c | ε
+TEST(LL1TableTest, BuildTableWithCustomType)
+{
+	struct MySymbol
+	{
+		std::string value;
+		bool is_terminal;
+
+		// Необходим для использования в качестве ключа в контейнерах
+		bool operator<(const MySymbol& other) const
+		{
+			return value < other.value;
+		}
+
+		bool operator==(const MySymbol& other) const
+		{
+			return value == other.value;
+		}
+	};
+
+	using Symbol = MySymbol;
+
+	Symbol S{ "S", false }, B{ "B", false };
+	Symbol a{ "a", true }, b{ "b", true }, c{ "c", true };
+	Symbol eps{ "ε", true }, dollar{ "$", true };
+
+	const basic_cfg<Symbol> g(
+		{ S, B },
+		{ a, b, c },
+		{ { S, { a, B, S } },
+			{ S, { b } },
+			{ B, { c } },
+			{ B, {} } },
+		S);
+
+	const auto table = ll1::table<Symbol>(g, eps, dollar);
+
+	// S
+	ASSERT_TRUE(table.has_rule(S, a));
+	EXPECT_EQ(table.at(S, a).rhs[0], a); // M[S, a] = S -> a B S
+
+	ASSERT_TRUE(table.has_rule(S, b));
+	EXPECT_EQ(table.at(S, b).rhs[0], b); // M[S, b] = S -> b
+
+	// B
+	// FOLLOW(B) includes 'a' (from S -> a B S) and 'b' (from S -> b)
+	ASSERT_TRUE(table.has_rule(B, c));
+	EXPECT_EQ(table.at(B, c).rhs[0], c); // M[B, c] = B -> c
+
+	// E-rules check
+	ASSERT_TRUE(table.has_rule(B, a));
+	EXPECT_TRUE(table.at(B, a).is_epsilon());
+
+	ASSERT_TRUE(table.has_rule(B, b));
+	EXPECT_TRUE(table.at(B, b).is_epsilon());
+
+	// Unexisting rule test
+	EXPECT_FALSE(table.has_rule(S, c));
+}
+
+// S -> a B S | b
+// B -> c | ε
 
 // 10 -> 1 11 10 | 2
 // 11 -> 3 | ε
