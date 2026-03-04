@@ -234,7 +234,7 @@ private:
 		}
 	}
 
-	std::string format_rhs(const std::vector<T_Symbol>& rhs) const
+	static std::string format_rhs(const std::vector<T_Symbol>& rhs)
 	{
 		if (rhs.empty())
 		{
