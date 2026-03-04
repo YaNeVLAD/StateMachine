@@ -573,7 +573,7 @@ TEST(CFGTest, LeftRecursionElimination)
 // B -> c | ε
 TEST(LL1TableTest, BuildValidTable)
 {
-	basic_cfg<std::string> g(
+	const basic_cfg<std::string> g(
 		{ "S", "B" },
 		{ "a", "b", "c" },
 		{ { "S", { "a", "B", "S" } },
@@ -582,32 +582,69 @@ TEST(LL1TableTest, BuildValidTable)
 			{ "B", {} } },
 		"S");
 
-	auto table = ll1::table<std::string>(g, "ε", "$");
+	const auto table = ll1::table<std::string>(g, "ε", "$");
 
 	// S rules
 	ASSERT_TRUE(table.has_rule("S", "a"));
-	EXPECT_EQ(table.get_rule("S", "a").rhs[0], "a"); // M[S, a] = S -> a B S
+	EXPECT_EQ(table.at("S", "a").rhs[0], "a"); // M[S, a] = S -> a B S
 
 	ASSERT_TRUE(table.has_rule("S", "b"));
-	EXPECT_EQ(table.get_rule("S", "b").rhs[0], "b"); // M[S, b] = S -> b
+	EXPECT_EQ(table.at("S", "b").rhs[0], "b"); // M[S, b] = S -> b
 
 	// B rules
 	ASSERT_TRUE(table.has_rule("B", "c"));
-	EXPECT_EQ(table.get_rule("B", "c").rhs[0], "c"); // M[B, c] = B -> c
+	EXPECT_EQ(table.at("B", "c").rhs[0], "c"); // M[B, c] = B -> c
 
 	// B -> ε applies for symbols from FOLLOW(B) = {a, b}
 	ASSERT_TRUE(table.has_rule("B", "a"));
-	EXPECT_TRUE(table.get_rule("B", "a").is_epsilon()); // M[B, a] = B -> ε
+	EXPECT_TRUE(table.at("B", "a").is_epsilon()); // M[B, a] = B -> ε
 
 	ASSERT_TRUE(table.has_rule("B", "b"));
-	EXPECT_TRUE(table.get_rule("B", "b").is_epsilon()); // M[B, b] = B -> ε
+	EXPECT_TRUE(table.at("B", "b").is_epsilon()); // M[B, b] = B -> ε
+}
+
+// S -> a B S | b
+// B -> c | ε
+
+// 10 -> 1 11 10 | 2
+// 11 -> 3 | ε
+TEST(LL1TableTest, BuildIntegerTypeValidTable)
+{
+	const basic_cfg g(
+		{ 10, 11 },
+		{ 1, 2, 3 },
+		{ { 10, { 1, 11, 10 } },
+			{ 10, { 2 } },
+			{ 11, { 3 } },
+			{ 11, {} } },
+		10);
+
+	const auto table = ll1::table(g, 0, 256);
+
+	// S rules
+	ASSERT_TRUE(table.has_rule(10, 1));
+	EXPECT_EQ(table.at(10, 1).rhs[0], 1); // M[S, a] = S -> a B S
+
+	ASSERT_TRUE(table.has_rule(10, 2));
+	EXPECT_EQ(table.at(10, 2).rhs[0], 2); // M[S, b] = S -> b
+
+	// B rules
+	ASSERT_TRUE(table.has_rule(11, 3));
+	EXPECT_EQ(table.at(11, 3).rhs[0], 3); // M[B, c] = B -> c
+
+	// B -> ε applies for symbols from FOLLOW(B) = {a, b}
+	ASSERT_TRUE(table.has_rule(11, 1));
+	EXPECT_TRUE(table.at(11, 1).is_epsilon()); // M[B, a] = B -> ε
+
+	ASSERT_TRUE(table.has_rule(11, 2));
+	EXPECT_TRUE(table.at(11, 2).is_epsilon()); // M[B, b] = B -> ε
 }
 
 // FIRST/FIRST Conflict:
 // S -> a | a b
 TEST(LL1TableTest, CollisionFirstFirst)
 {
-	basic_cfg<std::string> g(
+	const basic_cfg<std::string> g(
 		{ "S" },
 		{ "a", "b" },
 		{ { "S", { "a" } },

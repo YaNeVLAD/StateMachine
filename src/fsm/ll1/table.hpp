@@ -7,6 +7,18 @@
 
 namespace fsm::ll1
 {
+namespace details
+{
+template <typename T>
+concept Formattable = requires(T t) {
+	std::format("{}", t);
+};
+
+template <typename T>
+concept Streamable = requires(std::ostream& os, T a) {
+	os << a;
+};
+} // namespace details
 
 template <
 	typename T_Symbol,
@@ -22,6 +34,11 @@ public:
 	using symbol_type = T_Symbol;
 	using rule_type = T_Rule;
 
+	using iterator = typename storage_t::iterator;
+	using const_iterator = typename storage_t::const_iterator;
+
+	table() = default;
+
 	table(
 		const basic_cfg<T_Symbol, T_Compare>& g,
 		const T_Symbol& epsilon_symbol,
@@ -32,27 +49,29 @@ public:
 		build_table(g, epsilon_symbol, end_marker);
 	}
 
-	const storage_t& entries()
+	const storage_t& entries() const
 	{
 		return m_entries;
 	}
 
-	void add_entry(const T_Symbol& lhs, const T_Symbol& terminal, const rule_type& rule)
+	table& add_entry(const T_Symbol& lhs, const T_Symbol& terminal, const rule_type& rule)
 	{
-		if (m_entries[lhs].contains(terminal))
+		auto& row = m_entries[lhs];
+
+		auto [it, inserted] = row.try_emplace(terminal, rule);
+
+		if (!inserted)
 		{
-			if (!(m_entries[lhs][terminal] == rule))
+			const auto& existing_rule = it->second;
+
+			if (!(existing_rule == rule))
 			{ // Collision
-				const std::string err
-					= "Grammar is not LL(1)! Collision at ["
-					+ std::string(lhs) + "]["
-					+ std::string(terminal) + "].\n"
-					+ "Rules: \n1) " + m_entries[lhs][terminal].lhs
-					+ " -> ...\n2) " + rule.lhs + " -> ...";
-				throw std::runtime_error(err);
+				auto err_msg = create_error_message(lhs, terminal, rule, it->second);
+				throw std::runtime_error(err_msg);
 			}
 		}
-		m_entries[lhs][terminal] = rule;
+
+		return *this;
 	}
 
 	bool has_rule(const T_Symbol& lhs, const T_Symbol& terminal) const
@@ -66,9 +85,39 @@ public:
 		return it->second.contains(terminal);
 	}
 
-	const T_Rule& get_rule(const T_Symbol& lhs, const T_Symbol& terminal) const
+	const T_Rule& at(const T_Symbol& lhs, const T_Symbol& terminal) const
 	{
-		return m_entries.at(lhs).at(terminal);
+		try
+		{
+			return m_entries.at(lhs).at(terminal);
+		}
+		catch (...)
+		{
+			throw std::out_of_range("LL1 Table: No rule for given non-terminal and terminal");
+		}
+	}
+
+	const T_Rule& operator[](const T_Symbol& lhs, const T_Symbol& terminal) const
+	{
+		return at(lhs, terminal);
+	}
+
+	std::optional<std::reference_wrapper<const T_Rule>>
+	find(const T_Symbol& lhs, const T_Symbol& terminal) const
+	{
+		auto row_it = m_entries.find(lhs);
+		if (row_it == m_entries.end())
+		{
+			return std::nullopt;
+		}
+
+		auto rule_it = row_it->second.find(terminal);
+		if (rule_it == row_it->second.end())
+		{
+			return std::nullopt;
+		}
+
+		return std::cref(rule_it->second);
 	}
 
 	void print(std::ostream& os = std::cout) const
@@ -103,11 +152,107 @@ public:
 		return table(g, epsilon_symbol, end_marker);
 	}
 
+	auto begin()
+	{
+		return m_entries.begin();
+	}
+
+	auto end()
+	{
+		return m_entries.end();
+	}
+
+	auto begin() const
+	{
+		return m_entries.begin();
+	}
+
+	auto end() const
+	{
+		return m_entries.end();
+	}
+
+	[[nodiscard]] bool empty() const
+	{
+		return m_entries.empty();
+	}
+
 private:
 	T_Symbol m_epsilon_symbol;
 	T_Symbol m_end_symbol;
 	storage_t m_entries;
 
+	static std::string
+	create_error_message(
+		const T_Symbol& lhs,
+		const T_Symbol& terminal,
+		const rule_type& rule,
+		const rule_type& existing_rule)
+	{
+		using namespace details;
+
+		std::string lhs_str = symbol_to_string(lhs);
+		std::string terminal_str = symbol_to_string(terminal);
+
+		std::string err_msg = std::format(
+			"LL(1) Collision at [{}][{}].\n"
+			"1) {} -> {}\n"
+			"2) {} -> {}\n",
+			lhs_str, terminal_str,
+			symbol_to_string(existing_rule.lhs), format_rhs(existing_rule.rhs),
+			symbol_to_string(rule.lhs), format_rhs(rule.rhs));
+
+		if constexpr (!Formattable<T_Symbol> && !Streamable<T_Symbol>)
+		{
+			err_msg += "(Note: To see actual symbol values, implement std::formatter or operator<< for T_Symbol)";
+		}
+
+		return err_msg;
+	}
+
+	static std::string symbol_to_string(const T_Symbol& sym)
+	{
+		using namespace details;
+
+		if constexpr (Formattable<T_Symbol>)
+		{
+			return std::format("{}", sym);
+		}
+		else if constexpr (Streamable<T_Symbol>)
+		{
+			std::ostringstream oss;
+			oss << sym;
+			return oss.str();
+		}
+		else if constexpr (std::convertible_to<T_Symbol, std::string>)
+		{
+			return static_cast<std::string>(sym);
+		}
+		else
+		{
+			return "<unprintable_symbol>";
+		}
+	}
+
+	std::string format_rhs(const std::vector<T_Symbol>& rhs) const
+	{
+		if (rhs.empty())
+		{
+			return "ε";
+		}
+
+		std::string result;
+		for (size_t i = 0; i < rhs.size(); ++i)
+		{
+			result += symbol_to_string(rhs[i]);
+			if (i + 1 < rhs.size())
+			{
+				result += " ";
+			}
+		}
+
+		return result;
+	}
 	void build_table(
 		const basic_cfg<T_Symbol, T_Compare>& g,
 		const T_Symbol& epsilon_symbol,
@@ -281,7 +426,6 @@ private:
 		return follow;
 	}
 };
-
 } // namespace fsm::ll1
 
 #endif // FSM_LL1_TABLE_HPP
