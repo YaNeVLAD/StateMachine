@@ -787,8 +787,11 @@ TEST(LL1TableTest, ExceptionOnConflict2)
 	std::ifstream file("res/ll1_grammar_3.txt");
 	const basic_cfg<std::string> g = cfg_load(file);
 
-	const auto table = ll1::table<std::string>(g, "ε", "$");
-	ll1::print_table(table);
+	EXPECT_THROW(
+		{
+			const auto table = ll1::table<std::string>(g, "ε", "$");
+		},
+		std::runtime_error);
 }
 
 // PROGRAM -> begin d ; X end
