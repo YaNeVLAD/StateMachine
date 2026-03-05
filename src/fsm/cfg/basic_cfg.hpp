@@ -38,7 +38,7 @@ struct cfg_rule
 template <
 	typename T_Symbol,
 	typename T_Comparator = std::less<T_Symbol>>
-class basic_cfg
+class basic_cfg final
 {
 	using symbol_storage_t = std::set<T_Symbol, T_Comparator>;
 

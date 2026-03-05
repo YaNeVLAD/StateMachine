@@ -12,7 +12,7 @@ namespace fsm::ll1
 template <
 	std::equality_comparable T_Symbol,
 	typename T_Compare = std::less<T_Symbol>>
-class table
+class table final
 {
 	using terminal_storage_t = std::map<T_Symbol, cfg_rule<T_Symbol>, T_Compare>;
 	using symbol_storage_t = std::map<T_Symbol, std::set<T_Symbol, T_Compare>, T_Compare>;
