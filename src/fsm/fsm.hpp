@@ -6,6 +6,7 @@
 #include "dot.hpp"
 #include "lexer.hpp"
 #include "ll1/table.hpp"
+#include "ll1/table_printer.hpp"
 #include "mealy/minimization.hpp"
 #include "mealy_machine.hpp"
 #include "minimization.hpp"

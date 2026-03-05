@@ -3,6 +3,7 @@
 #include <fsm/cfg.hpp>
 #include <fsm/integer_symbol_generator.hpp>
 #include <fsm/ll1/table.hpp>
+#include <fsm/ll1/table_printer.hpp>
 #include <fsm/recognizer.hpp>
 #include <fsm/string_symbol_generator.hpp>
 
@@ -612,7 +613,6 @@ TEST(LL1TableTest, BuildTableWithCustomType)
 		std::string value;
 		bool is_terminal;
 
-		// Необходим для использования в качестве ключа в контейнерах
 		bool operator<(const MySymbol& other) const
 		{
 			return value < other.value;
@@ -666,11 +666,91 @@ TEST(LL1TableTest, BuildTableWithCustomType)
 
 // S -> a B S | b
 // B -> c | ε
+TEST(LL1TableTest, PrintCustomTypeTableWithDefaultFormatter)
+{
+	struct MySymbol
+	{
+		std::string value;
+		bool is_terminal;
 
-// 10 -> 1 11 10 | 2
-// 11 -> 3 | ε
+		bool operator<(const MySymbol& other) const
+		{
+			return value < other.value;
+		}
+
+		bool operator==(const MySymbol& other) const
+		{
+			return value == other.value;
+		}
+
+		explicit operator std::string() const
+		{
+			return value;
+		}
+	};
+
+	using Symbol = MySymbol;
+
+	Symbol S{ "S", false }, B{ "B", false };
+	Symbol a{ "a", true }, b{ "b", true }, c{ "c", true };
+	Symbol eps{ "ε", true }, dollar{ "$", true };
+
+	const basic_cfg g(
+		{ S, B },
+		{ a, b, c },
+		{ { S, { a, B, S } },
+			{ S, { b } },
+			{ B, { c } },
+			{ B, {} } },
+		S);
+
+	const auto table = ll1::table(g, eps, dollar);
+
+	std::ostringstream os;
+	ll1::print_table(table, os);
+	EXPECT_TRUE(os.str().find("<unprintable_symbol>") == std::string::npos);
+}
+
+// S -> a B S | b
+// B -> c | ε
+TEST(LL1TableTest, PrintCustomTypeTableWithCustomFormatterAndSettings)
+{
+	using namespace std::literals;
+	const basic_cfg<std::string> g(
+		{ "S", "B" },
+		{ "a", "b", "c" },
+		{ { "S", { "a", "B", "S" } },
+			{ "S", { "b" } },
+			{ "B", { "c" } },
+			{ "B", {} } },
+		"S");
+
+	const auto table = ll1::table(g, "e"s, "$"s);
+
+	std::ostringstream os;
+	ll1::table_printer_settings settings;
+	settings.table_header = "Custom LL1 table header";
+	settings.epsilon_str = "Custom Epsilon symbol";
+	settings.separator = " --->>> ";
+
+	auto formatter = [](const std::string& s) {
+		return std::quoted(s);
+	};
+
+	ll1::print_table(table, os, settings, formatter);
+	EXPECT_TRUE(os.str().find("<unprintable_symbol>") == std::string::npos);
+	EXPECT_TRUE(os.str().find("Custom LL1 table header") != std::string::npos);
+	EXPECT_TRUE(os.str().find("Custom Epsilon symbol") != std::string::npos);
+	EXPECT_TRUE(os.str().find(" --->>> ") != std::string::npos);
+	EXPECT_TRUE(os.str().find("\"S\"") != std::string::npos);
+}
+
+// S -> a B S | b
+// B -> c | ε
 TEST(LL1TableTest, BuildIntegerTypeValidTable)
 {
+	// 10 -> 1 11 10 | 2
+	// 11 -> 3 | ε
 	const basic_cfg g(
 		{ 10, 11 },
 		{ 1, 2, 3 },

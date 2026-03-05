@@ -2,37 +2,25 @@
 #define FSM_LL1_TABLE_HPP
 
 #include "../cfg/basic_cfg.hpp"
+#include "../concepts.hpp"
+#include "../symbol_formatter.hpp"
 
 #include <map>
 
 namespace fsm::ll1
 {
-namespace details
-{
-template <typename T>
-concept Formattable = requires(T t) {
-	std::format("{}", t);
-};
-
-template <typename T>
-concept Streamable = requires(std::ostream& os, T a) {
-	os << a;
-};
-} // namespace details
-
 template <
-	typename T_Symbol,
-	typename T_Compare = std::less<T_Symbol>,
-	typename T_Rule = cfg_rule<T_Symbol>>
+	std::equality_comparable T_Symbol,
+	typename T_Compare = std::less<T_Symbol>>
 class table
 {
-	using terminal_storage_t = std::map<T_Symbol, T_Rule, T_Compare>;
+	using terminal_storage_t = std::map<T_Symbol, cfg_rule<T_Symbol>, T_Compare>;
 	using symbol_storage_t = std::map<T_Symbol, std::set<T_Symbol, T_Compare>, T_Compare>;
 	using storage_t = std::map<T_Symbol, terminal_storage_t, T_Compare>;
 
 public:
 	using symbol_type = T_Symbol;
-	using rule_type = T_Rule;
+	using rule_type = cfg_rule<T_Symbol>;
 
 	using iterator = typename storage_t::iterator;
 	using const_iterator = typename storage_t::const_iterator;
@@ -85,7 +73,7 @@ public:
 		return it->second.contains(terminal);
 	}
 
-	const T_Rule& at(const T_Symbol& lhs, const T_Symbol& terminal) const
+	const rule_type& at(const T_Symbol& lhs, const T_Symbol& terminal) const
 	{
 		try
 		{
@@ -97,12 +85,12 @@ public:
 		}
 	}
 
-	const T_Rule& operator[](const T_Symbol& lhs, const T_Symbol& terminal) const
+	const rule_type& operator[](const T_Symbol& lhs, const T_Symbol& terminal) const
 	{
 		return at(lhs, terminal);
 	}
 
-	std::optional<std::reference_wrapper<const T_Rule>>
+	std::optional<std::reference_wrapper<const rule_type>>
 	find(const T_Symbol& lhs, const T_Symbol& terminal) const
 	{
 		auto row_it = m_entries.find(lhs);
@@ -118,30 +106,6 @@ public:
 		}
 
 		return std::cref(rule_it->second);
-	}
-
-	void print(std::ostream& os = std::cout) const
-	{
-		os << "--- LL(1) Parsing Table ---\n";
-		for (const auto& [lhs, row] : m_entries)
-		{
-			for (const auto& [term, rule] : row)
-			{
-				os << "M[" << lhs << ", " << term << "] = " << rule.lhs << " -> ";
-				if (rule.is_epsilon())
-				{
-					os << "ε";
-				}
-				else
-				{
-					for (const auto& s : rule.rhs)
-					{
-						os << s << " ";
-					}
-				}
-				os << "\n";
-			}
-		}
 	}
 
 	static table create(
@@ -189,20 +153,20 @@ private:
 		const rule_type& rule,
 		const rule_type& existing_rule)
 	{
-		using namespace details;
+		symbol_formatter<T_Symbol> formatter;
 
-		std::string lhs_str = symbol_to_string(lhs);
-		std::string terminal_str = symbol_to_string(terminal);
+		std::string lhs_str = formatter(lhs);
+		std::string terminal_str = formatter(terminal);
 
 		std::string err_msg = std::format(
-			"LL(1) Collision at [{}][{}].\n"
+			"LL(1) Collision at M[{}][{}].\n"
 			"1) {} -> {}\n"
 			"2) {} -> {}\n",
 			lhs_str, terminal_str,
-			symbol_to_string(existing_rule.lhs), format_rhs(existing_rule.rhs),
-			symbol_to_string(rule.lhs), format_rhs(rule.rhs));
+			formatter(existing_rule.lhs), format_rhs(existing_rule.rhs, formatter),
+			formatter(rule.lhs), format_rhs(rule.rhs, formatter));
 
-		if constexpr (!Formattable<T_Symbol> && !Streamable<T_Symbol>)
+		if constexpr (!std::formattable<T_Symbol, char> && !concepts::streamable<T_Symbol>)
 		{
 			err_msg += "(Note: To see actual symbol values, implement std::formatter or operator<< for T_Symbol)";
 		}
@@ -210,31 +174,7 @@ private:
 		return err_msg;
 	}
 
-	static std::string symbol_to_string(const T_Symbol& sym)
-	{
-		using namespace details;
-
-		if constexpr (Formattable<T_Symbol>)
-		{
-			return std::format("{}", sym);
-		}
-		else if constexpr (Streamable<T_Symbol>)
-		{
-			std::ostringstream oss;
-			oss << sym;
-			return oss.str();
-		}
-		else if constexpr (std::convertible_to<T_Symbol, std::string>)
-		{
-			return static_cast<std::string>(sym);
-		}
-		else
-		{
-			return "<unprintable_symbol>";
-		}
-	}
-
-	static std::string format_rhs(const std::vector<T_Symbol>& rhs)
+	static std::string format_rhs(const std::vector<T_Symbol>& rhs, symbol_formatter<T_Symbol>& formatter)
 	{
 		if (rhs.empty())
 		{
@@ -244,7 +184,7 @@ private:
 		std::string result;
 		for (size_t i = 0; i < rhs.size(); ++i)
 		{
-			result += symbol_to_string(rhs[i]);
+			result += formatter(rhs[i]);
 			if (i + 1 < rhs.size())
 			{
 				result += " ";
@@ -253,6 +193,7 @@ private:
 
 		return result;
 	}
+
 	void build_table(
 		const basic_cfg<T_Symbol, T_Compare>& g,
 		const T_Symbol& epsilon_symbol,

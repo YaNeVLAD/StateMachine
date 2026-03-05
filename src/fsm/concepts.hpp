@@ -60,6 +60,11 @@ concept is_string_like = std::ranges::common_range<T>
 		   { str += single_char };
 		   { str + single_char } -> std::same_as<T>;
 	   };
+
+template <typename T>
+concept streamable = requires(std::ostream& os, const std::remove_reference_t<T>& a) {
+	{ os << a } -> std::same_as<std::ostream&>;
+};
 } // namespace fsm::concepts
 
 #endif // STATE_MACHINE_CONCEPT_HPP
