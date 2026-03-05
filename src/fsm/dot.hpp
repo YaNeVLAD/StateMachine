@@ -64,7 +64,7 @@ std::ostream& print_node(std::ostream& os, T_State const& state_id, T_Args&&... 
 {
 	os << "    " << state_id;
 
-	if (sizeof...(T_Args) > 0)
+	if constexpr (sizeof...(T_Args) > 0)
 	{
 		os << " [";
 

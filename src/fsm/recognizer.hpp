@@ -588,7 +588,7 @@ recognize(T_Recognizer& recognizer, T_Container&& inputs)
 }
 
 template <>
-inline recognizer dot<recognizer>(std::istream& is)
+inline recognizer dot<recognizer>(std::istream&)
 {
 	return recognizer{ recognizer_state{} };
 }
