@@ -745,6 +745,64 @@ TEST(LL1TableTest, PrintCustomTypeTableWithCustomFormatterAndSettings)
 	EXPECT_TRUE(os.str().find("\"S\"") != std::string::npos);
 }
 
+// S -> AB
+// S -> PQx
+// A -> xy | m
+// B -> bC
+// C -> bC | e
+// P -> pP | e
+// Q -> qQ | e
+// Conflict in S and A non-terminals -> symbol x
+TEST(LL1TableTest, ExceptionOnConflict1)
+{
+	std::ifstream file("res/ll1_grammar_1.txt");
+	const basic_cfg<std::string> g = cfg_load(file);
+
+	EXPECT_THROW(
+		{
+			const auto table = ll1::table<std::string>(g, "ε", "$");
+		},
+		std::runtime_error);
+}
+
+// A -> BCc | lDB
+// B -> \e | bCDE
+// C -> DaB | ca
+// E -> lAf | c
+// D -> \e | dD
+TEST(LL1TableTest, CorrectLL1GrammarTest)
+{
+	std::ifstream file("res/ll1_grammar_2.txt");
+	const basic_cfg<std::string> g = cfg_load(file);
+
+	const auto table = ll1::table<std::string>(g, "ε", "$");
+	ll1::print_table(table);
+}
+
+// S -> a S A | \e
+// A -> b B | \e
+// B -> b d | \e
+TEST(LL1TableTest, ExceptionOnConflict2)
+{
+	std::ifstream file("res/ll1_grammar_3.txt");
+	const basic_cfg<std::string> g = cfg_load(file);
+
+	const auto table = ll1::table<std::string>(g, "ε", "$");
+	ll1::print_table(table);
+}
+
+// PROGRAM -> begin d ; X end
+// X -> d ; X | s Y
+// Y -> ; s Y | \e
+TEST(LL1TableTest, ExceptionOnConflict3)
+{
+	std::ifstream file("res/ll1_grammar_4.txt");
+	const basic_cfg<std::string> g = cfg_load(file);
+
+	const auto table = ll1::table<std::string>(g, "ε", "$");
+	ll1::print_table(table);
+}
+
 // S -> a B S | b
 // B -> c | ε
 TEST(LL1TableTest, BuildIntegerTypeValidTable)

@@ -1,0 +1,7 @@
+S -> A B
+S -> P Q x
+A -> x y | m
+B -> b C
+C -> b C | \e
+P -> p P | \e
+Q -> q Q | \e

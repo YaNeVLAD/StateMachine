@@ -1,0 +1,3 @@
+PROGRAM -> begin d ; X end
+X -> d ; X | s Y
+Y -> ; s Y | \e
