@@ -5,6 +5,7 @@
 #include "traits/translation_traits.hpp"
 
 #include <concepts>
+#include <ranges>
 
 namespace fsm::concepts
 {

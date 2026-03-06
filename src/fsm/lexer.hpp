@@ -1,14 +1,75 @@
-#ifndef LEXER_HPP
-#define LEXER_HPP
-
-#include <string_view>
+#ifndef FSM_LEXER_HPP
+#define FSM_LEXER_HPP
 
 #include "minimization.hpp"
 #include "recognizer.hpp"
 #include "regex.hpp"
 
+#include <string_view>
+
 namespace fsm
 {
+struct fsm_regex_matcher final
+{
+	recognizer recognizer;
+
+	static fsm_regex_matcher compile(const std::string& pattern)
+	{
+		regex re(pattern);
+		const auto nfa = re.compile();
+		return fsm_regex_matcher{ minimize(determinize(nfa)) };
+	}
+
+	[[nodiscard]] std::size_t
+	find_match(const std::string_view source, const std::size_t start_pos) const
+	{
+		fsm::recognizer machine_run = recognizer;
+		std::size_t last_final_len = 0;
+
+		for (std::size_t i = start_pos; i < source.length(); ++i)
+		{
+			try
+			{
+				if (machine_run.handle_input(std::make_optional(std::string(1, source[i]))))
+				{
+					last_final_len = i - start_pos + 1;
+				}
+			}
+			catch (...)
+			{
+				break;
+			}
+		}
+
+		return last_final_len;
+	}
+};
+
+struct std_regex_matcher final
+{
+	std::regex regex;
+
+	static std_regex_matcher compile(const std::string& pattern)
+	{
+		return { std::regex(pattern, std::regex::optimize) };
+	}
+
+	[[nodiscard]] std::size_t
+	find_match(const std::string_view source, const std::size_t start_pos) const
+	{
+		constexpr auto flags = std::regex_constants::match_continuous;
+		if (std::cmatch match; std::regex_search(
+				source.data() + start_pos,
+				source.data() + source.size(),
+				match, regex, flags))
+		{
+			return match.length();
+		}
+
+		return 0;
+	}
+};
+
 template <typename T_Type>
 struct token
 {
@@ -20,7 +81,7 @@ struct token
 	size_t offset{};
 };
 
-template <typename T_TokenType>
+template <typename T_TokenType, typename T_Matcher = fsm_regex_matcher>
 class lexer
 {
 public:
@@ -29,10 +90,9 @@ public:
 	struct rule
 	{
 		T_TokenType type;
-		recognizer machine;
+		T_Matcher matcher;
 
 		bool skip{};
-		size_t priority{};
 	};
 
 	explicit lexer(std::string_view source)
@@ -51,11 +111,7 @@ public:
 		T_TokenType type,
 		const bool skip = false)
 	{
-		regex regex(expression);
-		auto nfa = regex.compile();
-		auto min_dfa = minimize(determinize(nfa));
-
-		m_rules.emplace_back(type, std::move(min_dfa), skip, m_rules.size());
+		m_rules.emplace_back(type, T_Matcher::compile(expression), skip);
 
 		m_peek_buffer.reset();
 
@@ -173,44 +229,18 @@ private:
 		const rule* best_rule = nullptr;
 		size_t max_len = 0;
 
-		// TODO: Merge rules' recognizers to one to fold the cycle
 		for (const auto& rule : m_rules)
 		{
-			size_t current_len = 0;
-			size_t last_final_len = 0;
+			const std::size_t current_len = rule.matcher.find_match(m_source, m_cursor);
 
-			// TODO: Optimize recognizer copy constructor
-			recognizer machine_run = rule.machine;
-
-			for (size_t i = m_cursor; i < m_source.length(); ++i)
+			if (current_len > max_len)
 			{
-				const char input_char = m_source[i];
-				std::string input_str(1, input_char);
-
-				try
-				{
-					const bool is_final_now = machine_run.handle_input(std::optional{ input_str });
-					current_len++;
-
-					if (is_final_now)
-					{
-						last_final_len = current_len;
-					}
-				}
-				catch (...)
-				{
-					break;
-				}
-			}
-
-			if (last_final_len > max_len)
-			{
-				max_len = last_final_len;
+				max_len = current_len;
 				best_rule = &rule;
 			}
 		}
 
-		if (max_len > 0 && best_rule != nullptr)
+		if (max_len > 0)
 		{
 			return match_result{ best_rule, max_len };
 		}
@@ -238,4 +268,4 @@ private:
 
 } // namespace fsm
 
-#endif // LEXER_HPP
+#endif // FSM_LEXER_HPP
