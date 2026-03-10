@@ -1,0 +1,5 @@
+S -> E
+E -> E + T | E - T | T
+T -> T * P | P
+P -> ( E ) | I
+I -> a | b | c

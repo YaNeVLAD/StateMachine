@@ -129,19 +129,39 @@ public:
 	void print(std::ostream& os = std::cout) const
 	{
 		os << "Start: " << m_start_symbol << "\nRules:\n";
-		for (const auto& r : m_rules)
+
+		if (m_rules.empty())
+			return;
+
+		auto it = m_rules.begin();
+		while (it != m_rules.end())
 		{
-			os << "  " << r.lhs << " -> ";
-			if (r.is_epsilon())
+			const auto& current_lhs = it->lhs;
+			os << "  " << current_lhs << " -> ";
+
+			bool first_alternative = true;
+
+			while (it != m_rules.end() && it->lhs == current_lhs)
 			{
-				os << "ε";
-			}
-			else
-			{
-				for (const auto& sym : r.rhs)
+				if (!first_alternative)
 				{
-					os << sym << " ";
+					os << " | ";
 				}
+
+				if (it->is_epsilon())
+				{
+					os << "ε";
+				}
+				else
+				{
+					for (std::size_t i = 0; i < it->rhs.size(); ++i)
+					{
+						os << it->rhs[i] << (i + 1 < it->rhs.size() ? " " : "");
+					}
+				}
+
+				first_alternative = false;
+				++it;
 			}
 			os << "\n";
 		}
