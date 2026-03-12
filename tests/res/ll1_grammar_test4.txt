@@ -1,0 +1,5 @@
+F -> function I ( I ) ; S end
+S -> I := E P
+P -> ; I := E P | \e
+E -> E * I | E + I | I
+I -> a | b

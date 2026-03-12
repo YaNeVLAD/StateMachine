@@ -117,6 +117,12 @@ public:
 		return std::cref(rule_it->second);
 	}
 
+	table& set_entry(const T_Symbol& lhs, const T_Symbol& terminal, const rule_type& rule)
+	{
+		m_entries[lhs][terminal] = rule;
+		return *this;
+	}
+
 	table& set_epsilon(const T_Symbol& epsilon)
 	{
 		m_epsilon_symbol = epsilon;

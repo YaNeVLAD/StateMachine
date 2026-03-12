@@ -73,7 +73,7 @@ public:
 		return *this;
 	}
 
-	table_builder& with_collision_strategy(collision_strategy collision_strategy)
+	table_builder& with_collision_strategy(const collision_strategy collision_strategy)
 	{
 		m_strategy = collision_strategy;
 
@@ -157,6 +157,7 @@ public:
 						{
 							m_warning_callback("[WARNING] Conflict ignored (keep_first):\n" + detailed_err);
 						}
+
 						return;
 					}
 					if (m_strategy == collision_strategy::keep_last)
@@ -165,7 +166,9 @@ public:
 						{
 							m_warning_callback("[WARNING] Rule overridden (keep_last):\n" + detailed_err);
 						}
-						// TODO: Implement set_entry() in ll1::table and override conflicting entry
+						result.set_entry(A, terminal, rule);
+
+						return;
 					}
 				}
 

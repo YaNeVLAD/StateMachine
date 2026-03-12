@@ -1,0 +1,7 @@
+Z -> S
+S -> P := E | if E then S | if E then S else S
+P -> I | I ( E )
+E -> E + T | T
+T -> T * F | F
+F -> P | ( E )
+I -> a | b

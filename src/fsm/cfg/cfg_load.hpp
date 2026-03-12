@@ -14,10 +14,13 @@ namespace fsm
 /**
  * Expected format: LHS -> RHS1 RHS2 ... | RHS_ALT ...
  */
-inline basic_cfg<std::string> cfg_load(std::istream& in = std::cin)
+template <
+	typename T_Compare = std::less<std::string>>
+basic_cfg<std::string, T_Compare>
+cfg_load(std::istream& in = std::cin)
 {
-	std::set<std::string> non_terminals;
-	std::set<std::string> terminals;
+	std::set<std::string, T_Compare> non_terminals;
+	std::set<std::string, T_Compare> terminals;
 	std::set<cfg_rule<std::string>> rules;
 	std::string start_symbol;
 
@@ -86,7 +89,7 @@ inline basic_cfg<std::string> cfg_load(std::istream& in = std::cin)
 		}
 	}
 
-	return { non_terminals, terminals, rules, start_symbol };
+	return basic_cfg{ non_terminals, terminals, rules, start_symbol };
 }
 } // namespace fsm
 

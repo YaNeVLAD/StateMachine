@@ -131,7 +131,9 @@ public:
 		os << "Start: " << m_start_symbol << "\nRules:\n";
 
 		if (m_rules.empty())
+		{
 			return;
+		}
 
 		auto it = m_rules.begin();
 		while (it != m_rules.end())

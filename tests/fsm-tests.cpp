@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
+#include <stack>
 
 #include <fsm/cfg.hpp>
 #include <fsm/integer_symbol_generator.hpp>
+#include <fsm/ll1/accepts.hpp>
 #include <fsm/ll1/table.hpp>
 #include <fsm/ll1/table_builder.hpp>
 #include <fsm/ll1/table_printer.hpp>
@@ -1012,6 +1014,169 @@ TEST(LL1TableBuilderTest, SupportsCustomTypes)
 
 	ASSERT_TRUE(table.has_rule(S, a));
 	EXPECT_EQ(table.at(S, a).rhs[0].id, 2);
+}
+
+struct VmRow
+{
+	std::string symbol;
+	std::set<std::string> lookaheads;
+	int next_row; // -1 equals NULL
+	int stack_row; // -1 equals NULL
+	bool is_epsilon;
+	bool err;
+	bool end;
+	bool shift;
+};
+
+TEST(LL1, ExecutionProof)
+{
+	const std::vector<VmRow> optimized_table = {
+		/* 0*/ { "c", { "c" }, 1, -1, false, true, false, true },
+		/* 1*/ { "B", { "" }, 3, 2, false, true, false, false },
+		/* 2*/ { "d", { "d" }, -1, -1, false, true, true, true },
+		/* 3*/ { "ε", { "d", "g" }, -1, -1, true, false, true, false },
+		/* 4*/ { "f", { "f" }, 6, -1, false, false, false, true },
+		/* 5*/ { "k", { "k" }, -1, -1, false, true, true, true },
+		/* 6*/ { "B", { "" }, 3, 7, false, true, false, false },
+		/* 7*/ { "g", { "g" }, -1, -1, false, true, true, true },
+		/* 8*/ { "a", { "a" }, 9, -1, false, true, false, true },
+		/* 9*/ { "A", { "" }, 0, 10, false, true, false, false },
+		/* 10*/ { "b", { "b" }, -1, -1, false, true, true, true }
+	};
+
+	// Input: a c f k g d b $
+	const std::vector<std::string> input = { "a", "c", "f", "k", "g", "d", "b", "$" };
+	int token_ptr = 0; // Index of S
+
+	std::stack<int> ret_stack;
+	int pc = 8;
+
+	bool success = false;
+
+	while (pc != -1)
+	{
+		const auto& row = optimized_table[pc];
+		const std::string& current_token = input[token_ptr];
+
+		const bool la_match = row.lookaheads.empty() || row.lookaheads.contains(current_token) || row.lookaheads.contains("");
+
+		if (!la_match)
+		{
+			if (!row.err)
+			{
+				pc++; // Fallthrough
+				continue;
+			}
+			FAIL() << "Синтаксическая ошибка на токене: " << current_token << " (PC=" << pc << ")";
+		}
+
+		if (row.shift && !row.is_epsilon)
+		{
+			token_ptr++;
+		}
+
+		if (row.stack_row != -1)
+		{
+			ret_stack.push(row.stack_row);
+		}
+
+		if (row.next_row != -1)
+		{
+			pc = row.next_row;
+		}
+		else if (!ret_stack.empty())
+		{
+			pc = ret_stack.top();
+			ret_stack.pop();
+		}
+		else
+		{
+			pc = -1;
+			success = true;
+		}
+	}
+
+	EXPECT_TRUE(success);
+	EXPECT_EQ(input[token_ptr], "$");
+}
+
+TEST(LL1, AcceptanceTest1)
+{
+	using namespace std::literals;
+	std::ifstream file("res/ll1_grammar_test.txt");
+	auto g = cfg_load(file) | remove_left_recursion | left_factor;
+	auto table = ll1::table_builder(g).with_epsilon("ε").with_end_marker("$").build();
+
+	// ------------------------------------------------------------------------
+	// 1: while (a+b*c(c+a)) do a(a+b,a)=a
+	// ------------------------------------------------------------------------
+	std::vector<std::string> input_1 = {
+		"while", "(", "a", "+", "b", "*", "c", "(", "c", "+", "a", ")", ")",
+		"do", "a", "(", "a", "+", "b", ",", "a", ")", "=", "a"
+	};
+	EXPECT_TRUE(ll1::accepts(table, "S"s, "ε"s, "$"s, input_1, &std::cerr, &std::cout));
+
+	// ------------------------------------------------------------------------
+	// 2: while (a+b*(a+c)) do a (a, a+b) = b
+	// ------------------------------------------------------------------------
+	std::vector<std::string> input_2 = {
+		"while", "(", "a", "+", "b", "*", "(", "a", "+", "c", ")", ")",
+		"do", "a", "(", "a", ",", "a", "+", "b", ")", "=", "b"
+	};
+	EXPECT_TRUE(ll1::accepts(table, "S"s, "ε"s, "$"s, input_2, &std::cerr, &std::cout));
+
+	// ------------------------------------------------------------------------
+	// 3: while (a+b*c(c+a)) do a(a+b a)=a
+	// ------------------------------------------------------------------------
+	std::vector<std::string> input_3 = {
+		"while", "(", "a", "+", "b", "*", "c", "(", "c", "+", "a", ")", ")",
+		"do", "a", "(", "a", "+", "b", "a", ")", "=", "a"
+	};
+	EXPECT_FALSE(ll1::accepts(table, "S"s, "ε"s, "$"s, input_3, &std::cerr, &std::cout));
+}
+
+// S -> type I = T B
+// T -> int | record I : T B end
+// B -> \e | ; I : T B
+// I -> a | b | c
+TEST(LL1, AcceptanceTest2)
+{
+	using namespace std::literals;
+	std::ifstream file("res/ll1_grammar_test2.txt");
+	auto g = cfg_load(file) | remove_left_recursion | left_factor | reduce_grammar;
+	auto table = ll1::table_builder(g).with_epsilon("ε").with_end_marker("$").build();
+
+	std::vector<std::string> input_sequence = {
+		"type", "a", "=", "record", "a", ":", "int", ";", "b", ":", "int", "end"
+	};
+	EXPECT_TRUE(ll1::accepts(table, "S"s, "ε"s, "$"s, input_sequence, &std::cerr, &std::cout));
+
+	std::vector<std::string> input_sequence2 = {
+		"type", "a", "=", "int", ";", "b", ":", "record", "a", ":", "int", "end"
+	};
+	EXPECT_TRUE(ll1::accepts(table, "S"s, "ε"s, "$"s, input_sequence2, &std::cerr, &std::cout));
+}
+
+// F -> function I ( I ) S; I := E end
+// S -> ; I := E S | ε
+// E -> E * I | E + I | I
+// I -> a | b
+TEST(LL1, AcceptanceTest4)
+{
+	using namespace std::literals;
+	std::ifstream file("res/ll1_grammar_test4.txt");
+	auto g = cfg_load(file) | remove_left_recursion | left_factor;
+	auto table = ll1::table_builder(g).with_epsilon("ε").with_end_marker("$").build();
+
+	std::vector<std::string> input_sequence = {
+		"function", "a", "(", "b", ")", ";", "a", ":=", "a", "*", "a", ";", "a", ":=", "b", "*", "a", "end"
+	};
+	EXPECT_TRUE(ll1::accepts(table, "F"s, "ε"s, "$"s, input_sequence, &std::cerr, &std::cout));
+
+	std::vector<std::string> input_sequence2 = {
+		"function", "b", "(", "a", ")", ";", "a", ":=", "a", "+", "a", "*", "a", ";", "a", ":=", "b", "end"
+	};
+	EXPECT_TRUE(ll1::accepts(table, "F"s, "ε"s, "$"s, input_sequence2, &std::cerr, &std::cout));
 }
 
 #if 0

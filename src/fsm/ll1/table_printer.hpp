@@ -11,7 +11,8 @@ namespace fsm::ll1
 enum class table_format
 {
 	rules_list,
-	compiled_table
+	compiled_table,
+	detailed_table,
 };
 
 struct table_printer_settings
@@ -253,6 +254,201 @@ void print_as_compiled_table(
 	}
 	os << std::endl;
 }
+
+template <typename T_Symbol, typename T_Compare, typename F = symbol_formatter<T_Symbol>>
+void print_as_detailed_table(
+	const basic_cfg<T_Symbol, T_Compare>& g,
+	const table<T_Symbol, T_Compare>& tbl,
+	const T_Symbol& epsilon_symbol,
+	const T_Symbol& eof_symbol,
+	std::ostream& os = std::cout,
+	F formatter = {})
+{
+	using rule_t = cfg_rule<T_Symbol>;
+
+	struct RuleInfo
+	{
+		rule_t rule;
+		std::set<T_Symbol, T_Compare> lookaheads;
+	};
+
+	std::vector<T_Symbol> ordered_lhs;
+	std::map<T_Symbol, std::vector<RuleInfo>, T_Compare> rules_info;
+
+	for (const auto& rule : g.rules())
+	{
+		if (!rules_info.contains(rule.lhs))
+		{
+			ordered_lhs.push_back(rule.lhs);
+		}
+
+		std::set<T_Symbol, T_Compare> la;
+		if (tbl.entries().contains(rule.lhs))
+		{
+			for (const auto& [term, tbl_rule] : tbl.entries().at(rule.lhs))
+			{
+				if (tbl_rule == rule)
+				{
+					la.insert(term);
+				}
+			}
+		}
+		rules_info[rule.lhs].push_back({ rule, la });
+	}
+
+	int current_idx = 1;
+	std::map<T_Symbol, std::vector<int>, T_Compare> disp_indices;
+	std::map<T_Symbol, int, T_Compare> first_disp_idx;
+
+	for (const auto& lhs : ordered_lhs)
+	{
+		first_disp_idx[lhs] = current_idx;
+		for (std::size_t k = 0; k < rules_info[lhs].size(); ++k)
+		{
+			disp_indices[lhs].push_back(current_idx++);
+		}
+	}
+
+	std::map<T_Symbol, std::vector<std::vector<int>>, T_Compare> body_indices;
+	for (const auto& lhs : ordered_lhs)
+	{
+		body_indices[lhs].resize(rules_info[lhs].size());
+		for (std::size_t k = 0; k < rules_info[lhs].size(); ++k)
+		{
+			const auto& rule = rules_info[lhs][k].rule;
+			std::size_t rhs_size = rule.rhs.size();
+
+			if (lhs == g.start_symbol())
+			{
+				++rhs_size;
+			}
+			if (rhs_size == 0)
+			{
+				rhs_size = 1;
+			}
+
+			body_indices[lhs][k].resize(rhs_size);
+			for (std::size_t j = 0; j < rhs_size; ++j)
+			{
+				body_indices[lhs][k][j] = current_idx++;
+			}
+		}
+	}
+
+	auto to_yes_no = [](const bool v) { return v ? "yes" : "no"; };
+	auto set_to_str = [&](const std::set<T_Symbol, T_Compare>& s) {
+		std::string res;
+		bool first = true;
+		for (const auto& sym : s)
+		{
+			if (!first)
+			{
+				res += ", ";
+			}
+			res += formatter(sym);
+			first = false;
+		}
+		return res;
+	};
+
+	os << "--- LL(1) Table (Detailed format) ---\n";
+	os << std::left
+	   << std::setw(4) << "№" << " | "
+	   << std::setw(6) << "Н.м." << " | "
+	   << std::setw(15) << "Символы" << " | "
+	   << std::setw(4) << "ERR" << " | "
+	   << std::setw(8) << "Переход" << " | "
+	   << std::setw(6) << "Сдвиг" << " | "
+	   << std::setw(5) << "Стек" << "\n";
+	os << std::string(64, '-') << "\n";
+
+	for (const auto& lhs : ordered_lhs)
+	{
+		for (std::size_t k = 0; k < rules_info[lhs].size(); ++k)
+		{
+			const int idx = disp_indices[lhs][k];
+			bool is_last = (k == rules_info[lhs].size() - 1);
+			int target_body = body_indices[lhs][k][0];
+
+			os << std::left
+			   << std::setw(4) << idx << " | "
+			   << std::setw(6) << formatter(lhs) << " | "
+			   << std::setw(15) << set_to_str(rules_info[lhs][k].lookaheads) << " | "
+			   << std::setw(4) << to_yes_no(is_last) << " | "
+			   << std::setw(8) << target_body << " | "
+			   << std::setw(6) << "" << " | "
+			   << std::setw(5) << "" << "\n";
+		}
+	}
+
+	os << std::string(64, '-') << "\n";
+
+	for (const auto& lhs : ordered_lhs)
+	{
+		for (std::size_t k = 0; k < rules_info[lhs].size(); ++k)
+		{
+			const auto& rule = rules_info[lhs][k].rule;
+			std::vector<T_Symbol> rhs_to_print = rule.rhs;
+
+			if (lhs == g.start_symbol())
+			{
+				rhs_to_print.push_back(eof_symbol);
+			}
+
+			if (rhs_to_print.empty())
+			{
+				const int idx = body_indices[lhs][k][0];
+				os << std::left << std::setw(4) << idx << " | "
+				   << std::setw(6) << formatter(epsilon_symbol) << " | "
+				   << std::setw(15) << set_to_str(rules_info[lhs][k].lookaheads) << " | "
+				   << std::setw(4) << "yes" << " | "
+				   << std::setw(8) << "NULL" << " | "
+				   << std::setw(6) << "no" << " | "
+				   << std::setw(5) << "no" << "\n";
+			}
+			else
+			{
+				for (std::size_t j = 0; j < rhs_to_print.size(); ++j)
+				{
+					T_Symbol sym = rhs_to_print[j];
+					const int idx = body_indices[lhs][k][j];
+					bool is_nt = g.is_non_terminal(sym);
+					const bool is_last = (j == rhs_to_print.size() - 1);
+
+					std::string next_str = is_last ? "NULL" : std::to_string(idx + 1);
+					if (is_nt)
+					{
+						next_str = std::to_string(first_disp_idx[sym]);
+					}
+
+					std::string sym_col_str;
+					if (is_nt)
+					{
+						std::set<T_Symbol, T_Compare> nt_la;
+						if (tbl.entries().contains(sym))
+						{
+							for (const auto& [t, r] : tbl.entries().at(sym))
+								nt_la.insert(t);
+						}
+						sym_col_str = set_to_str(nt_la);
+					}
+					else
+					{
+						sym_col_str = formatter(sym);
+					}
+
+					os << std::left << std::setw(4) << idx << " | "
+					   << std::setw(6) << formatter(sym) << " | "
+					   << std::setw(15) << sym_col_str << " | "
+					   << std::setw(4) << "yes" << " | "
+					   << std::setw(8) << next_str << " | "
+					   << std::setw(6) << to_yes_no(!is_nt) << " | "
+					   << std::setw(5) << to_yes_no(is_nt) << "\n";
+				}
+			}
+		}
+	}
+}
 } // namespace details
 
 template <typename T_Symbol, typename T_Compare, typename F = symbol_formatter<T_Symbol>>
@@ -266,7 +462,7 @@ void print_table(
 	{
 		details::print_as_rules(table, os, settings, formatter);
 	}
-	else
+	else if (settings.format == table_format::compiled_table)
 	{
 		details::print_as_compiled_table(table, os, settings, formatter);
 	}

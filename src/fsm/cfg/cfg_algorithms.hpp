@@ -947,7 +947,11 @@ public:
 
 			if (!alphas.empty())
 			{
-				symbol_type Ai_prime = gen.next_intermediate();
+				symbol_type Ai_prime;
+				do
+				{
+					Ai_prime = gen.next_intermediate();
+				} while (result.is_non_terminal(Ai_prime) || result.is_terminal(Ai_prime));
 				result.add_non_terminal(Ai_prime);
 
 				std::vector<std::vector<symbol_type>> new_Ai_rules;
@@ -1009,6 +1013,143 @@ public:
 private:
 };
 
+class LeftFactor_fn
+{
+public:
+	template <typename T_Symbol, typename T_Compare, typename T_Gen>
+	basic_cfg<T_Symbol, T_Compare> operator()(const basic_cfg<T_Symbol, T_Compare>& g, T_Gen& gen) const
+	{
+		using symbol_type = T_Symbol;
+
+		basic_cfg<T_Symbol, T_Compare> result = g;
+
+		bool changed = true;
+		while (changed)
+		{
+			changed = false;
+
+			std::map<symbol_type, std::vector<std::vector<symbol_type>>> current_rules;
+			for (const auto& r : result.rules())
+			{
+				current_rules[r.lhs].push_back(r.rhs);
+			}
+
+			result.clear_rules();
+
+			for (const auto& [lhs, rhs] : current_rules)
+			{
+				if (changed)
+				{ // if changed - append the rest
+					for (const auto& rule : rhs)
+					{
+						result.add_rule({ lhs, rule });
+					}
+					continue;
+				}
+
+				if (rhs.size() < 2)
+				{ // if less than 2 alternatives - append the rest
+					for (const auto& rule : rhs)
+					{
+						result.add_rule({ lhs, rule });
+					}
+					continue;
+				}
+
+				size_t best_count = 0;
+				std::vector<symbol_type> best_prefix;
+				for (std::size_t i = 0; i < rhs.size(); ++i)
+				{
+					for (std::size_t j = i + 1; j < rhs.size(); ++j)
+					{
+						std::vector<symbol_type> current_prefix;
+						const std::size_t min_len = std::min(rhs[i].size(), rhs[j].size());
+
+						for (std::size_t k = 0; k < min_len; ++k)
+						{
+							if (rhs[i][k] == rhs[j][k])
+							{
+								current_prefix.push_back(rhs[i][k]);
+							}
+							else
+							{
+								break;
+							}
+						}
+
+						if (!current_prefix.empty())
+						{ // resolving the longest prefix
+							size_t count = 0;
+							for (const auto& rule : rhs)
+							{
+								if (rule.size() >= current_prefix.size() && std::equal(current_prefix.begin(), current_prefix.end(), rule.begin()))
+								{
+									count++;
+								}
+							}
+
+							if (current_prefix.size() > best_prefix.size()
+								|| (current_prefix.size() == best_prefix.size()
+									&& count > best_count))
+							{
+								best_prefix = current_prefix;
+								best_count = count;
+							}
+						}
+					}
+				}
+
+				if (!best_prefix.empty())
+				{ // apply the left factor
+					changed = true;
+					symbol_type new_nt;
+					do
+					{
+						new_nt = gen.next_intermediate();
+					} while (result.is_non_terminal(new_nt) || result.is_terminal(new_nt));
+					result.add_non_terminal(new_nt);
+
+					std::vector<symbol_type> new_rule_rhs = best_prefix;
+					new_rule_rhs.push_back(new_nt);
+					result.add_rule({ lhs, new_rule_rhs });
+
+					for (const auto& rule : rhs)
+					{
+						if (rule.size() >= best_prefix.size() && std::equal(best_prefix.begin(), best_prefix.end(), rule.begin()))
+						{ // create the tail
+							std::vector<symbol_type> remainder(rule.begin() + best_prefix.size(), rule.end());
+							result.add_rule({ new_nt, remainder });
+						}
+						else
+						{ // don't need to change the rule without prefix
+							result.add_rule({ lhs, rule });
+						}
+					}
+				}
+				else
+				{
+					for (const auto& rule : rhs)
+					{
+						result.add_rule({ lhs, rule });
+					}
+				}
+			}
+		}
+
+		return result;
+	}
+
+	template <typename T_Symbol, typename T_Compare>
+	basic_cfg<T_Symbol, T_Compare> operator()(const basic_cfg<T_Symbol, T_Compare>& g) const
+	{
+		default_symbol_generator<T_Symbol> gen;
+
+		return operator()(g, gen);
+	}
+
+private:
+};
+
 } // namespace algorithms::impl
 
 namespace algorithms
@@ -1033,6 +1174,8 @@ inline constexpr impl::MergeEquivalentSymbols_fn merge_equivalent_symbols;
 inline constexpr impl::ReduceGrammar_fn reduce_grammar;
 
 inline constexpr impl::RemoveLeftRecursion_fn remove_left_recursion;
+
+inline constexpr impl::LeftFactor_fn left_factor;
 
 inline constexpr impl::ChomskyNormalForm_fn to_chomsky_normal_form;
 
