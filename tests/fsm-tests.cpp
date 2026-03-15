@@ -6,6 +6,7 @@
 #include <fsm/ll1/accepts.hpp>
 #include <fsm/ll1/table.hpp>
 #include <fsm/ll1/table_builder.hpp>
+#include <fsm/ll1/table_io.hpp>
 #include <fsm/ll1/table_printer.hpp>
 #include <fsm/recognizer.hpp>
 #include <fsm/string_symbol_generator.hpp>
@@ -1177,6 +1178,113 @@ TEST(LL1, AcceptanceTest4)
 		"function", "b", "(", "a", ")", ";", "a", ":=", "a", "+", "a", "*", "a", ";", "a", ":=", "b", "end"
 	};
 	EXPECT_TRUE(ll1::accepts(table, "F"s, "ε"s, "$"s, input_sequence2, &std::cerr, &std::cout));
+}
+
+TEST(LL1Table, ProgrammingLanguageGrammarTest)
+{
+	using namespace std::literals;
+	const auto EPSILON = "ε"s;
+	const auto END_MARKER = "$"s;
+
+	std::ifstream file("res/cfg_prog_lang.txt");
+	auto g = cfg_load(file) | remove_left_recursion | left_factor;
+	auto table = ll1::table_builder(g).with_epsilon(EPSILON).with_end_marker(END_MARKER).build();
+
+	ll1::print_table(table, std::cout, { .format = ll1::table_format::compiled_table });
+
+	/*
+		package org.example;
+		import java.util.*;
+
+		@Inject
+		public class MyClass <T> {
+			private val id: Int = intCon;
+		}
+
+		internal compile_time fun List<String>.printAll(prefix: String): Null {
+			for (i in intCon .. intCon) {
+				print(prefix);
+			}
+			return null;
+		}
+
+		var flag = true;
+	*/
+	std::vector<std::string> tokens = {
+		// package org.example;
+		"package", "ident", ".", "ident", ";",
+
+		// import java.util.*;
+		"import", "ident", ".", "ident", ".", "*", ";",
+
+		// @Inject public class MyClass <T> {
+		"@", "ident",
+		"public", "class", "ident", "<", "ident", ">", "{",
+
+		// private val id : Int = intCon ;
+		"private", "val", "ident", ":", "ident", "=", "intCon", ";",
+
+		"}", // class end
+
+		// internal compile_time fun List<String>.printAll(prefix: String): Null {
+		"internal", "compile_time", "fun", "ident", "<", "ident", ">", ".", "ident", "(", "ident", ":", "ident", ")", ":", "ident", "{",
+
+		// for (i in intCon .. intCon) {
+		"for", "(", "ident", "in", "intCon", "..", "intCon", ")", "{",
+
+		// print (prefix) ;
+		"ident", "(", "ident", ")", ";",
+
+		"}",
+
+		// return null ;
+		"return", "null", ";",
+
+		"}", // function end
+
+		// var flag = true ;
+		"var", "ident", "=", "true", ";"
+	};
+
+	EXPECT_TRUE(ll1::accepts(table, "Program"s, EPSILON, END_MARKER, tokens, &std::cerr));
+}
+
+// F -> function I ( I ) S; I := E end
+// S -> ; I := E S | ε
+// E -> E * I | E + I | I
+// I -> a | b
+TEST(LL1Table, SaveAndLoadTest)
+{
+	using namespace std::literals;
+	std::ifstream file("res/ll1_grammar_test4.txt");
+	auto g = cfg_load(file) | remove_left_recursion | left_factor;
+	auto table = ll1::table_builder(g).with_epsilon("ε").with_end_marker("$").build();
+
+	// --- TEXT ---
+	{
+		std::ofstream out("res/out_table.txt");
+		ll1::io::save_to_text(table, out);
+	}
+	{
+		std::ifstream in("res/out_table.txt");
+		auto loaded_table = fsm::ll1::io::load_from_text<std::string>(in);
+
+		EXPECT_EQ(loaded_table.epsilon(), "ε");
+		EXPECT_EQ(loaded_table.end_marker(), "$");
+	}
+
+	// --- BINARY ---
+	{
+		std::ofstream out("res/out_table.bin", std::ios::binary);
+		ll1::io::save_to_binary(table, out);
+	}
+	{
+		std::ifstream in("res/out_table.bin", std::ios::binary);
+		auto loaded_table = ll1::io::load_from_binary<std::string>(in);
+
+		EXPECT_EQ(loaded_table.epsilon(), "ε");
+		EXPECT_EQ(loaded_table.end_marker(), "$");
+	}
 }
 
 #if 0

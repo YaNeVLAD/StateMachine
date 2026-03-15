@@ -1,0 +1,77 @@
+Program -> OptPackageDecl ImportDeclList TopLevelDeclList
+
+OptPackageDecl -> PackageDecl | \e
+ImportDeclList -> ImportDecl ImportDeclList | \e
+TopLevelDeclList -> TopLevelDecl TopLevelDeclList | \e
+
+PackageDecl -> package ident DotIdentList ;
+DotIdentList -> . ident DotIdentList | \e
+
+ImportDecl -> import ident ImportTail ;
+ImportTail -> . ImportAfterDot | \e
+ImportAfterDot -> ident ImportTail | *
+
+TopLevelDecl -> AnnotationList OptVisibility TopLevelDeclCore
+TopLevelDeclCore -> VarDeclCore | ValDeclCore | ClassDeclCore | FunDeclCore
+
+AnnotationList -> Annotation AnnotationList | \e
+Annotation -> @ ident OptParenExpr
+OptParenExpr -> ( Expr ) | \e
+
+Visibility -> public | private | internal
+OptVisibility -> Visibility | \e
+
+VarDeclCore -> var ident OptColonType = Expr ;
+ValDeclCore -> val ident OptColonType = Expr ;
+OptColonType -> : Type | \e
+
+ClassDeclCore -> class ident OptTypeParams { ClassMemberList }
+OptTypeParams -> < TypeParams > | \e
+ClassMemberList -> ClassMember ClassMemberList | \e
+ClassMember -> AnnotationList OptVisibility ClassMemberCore
+ClassMemberCore -> VarDeclCore | ValDeclCore | FunDeclCore
+
+FunDeclCore -> OptFunMod fun ident FunAfterIdent
+
+FunAfterIdent -> . ident OptTypeParams ( OptFormPars ) OptColonType FunBody | ? . ident OptTypeParams ( OptFormPars ) OptColonType FunBody | ( OptFormPars ) OptColonType FunBody | < Type CommaTypeList > FunAfterAngles
+
+FunAfterAngles -> . ident OptTypeParams ( OptFormPars ) OptColonType FunBody | ? . ident OptTypeParams ( OptFormPars ) OptColonType FunBody | ( OptFormPars ) OptColonType FunBody
+
+OptFunMod -> external | compile_time | \e
+OptFormPars -> FormPars | \e
+FunBody -> Block | = Expr ;
+
+TypeParams -> ident CommaIdentList
+CommaIdentList -> , ident CommaIdentList | \e
+
+FormPars -> ident : Type CommaFormParsList
+CommaFormParsList -> , ident : Type CommaFormParsList | \e
+
+Type -> ident OptTypeArgs OptQuestion
+OptTypeArgs -> < Type CommaTypeList > | \e
+CommaTypeList -> , Type CommaTypeList | \e
+OptQuestion -> ? | \e
+
+Block -> { StatementList }
+StatementList -> Statement StatementList | \e
+
+Statement -> VarDecl | ValDecl | Expr ; | IfStmt | WhileStmt | ForStmt | return OptExpr ; | break ;
+OptExpr -> Expr | \e
+
+IfStmt -> if ( Expr ) Block OptElse
+OptElse -> else ElseBody | \e
+ElseBody -> IfStmt | Block
+
+WhileStmt -> while ( Expr ) Block
+ForStmt -> for ( ident in Expr .. Expr ) Block
+
+Expr -> Designator OptAssignExpr | true | false | null | intCon | floatCon | stringCon
+OptAssignExpr -> = Expr | \e
+
+Designator -> ident DesignatorTailList
+DesignatorTailList -> DesignatorTail DesignatorTailList | \e
+DesignatorTail -> . ident | [ Expr ] | ?. ident | ( OptActPars )
+
+OptActPars -> ActPars | \e
+ActPars -> Expr CommaExprList
+CommaExprList -> , Expr CommaExprList | \e
