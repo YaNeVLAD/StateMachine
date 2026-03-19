@@ -76,16 +76,20 @@ struct token
 	T_Type type;
 	std::string_view lexeme;
 
-	size_t line{};
-	size_t column{};
-	size_t offset{};
+	std::size_t line{};
+	std::size_t column{};
+	std::size_t offset{};
 };
 
 template <typename T_TokenType, typename T_Matcher = fsm_regex_matcher>
 class lexer
 {
+	using token_t = token<T_TokenType>;
+	using optional_token = std::optional<token_t>;
+	using error_type = std::optional<T_TokenType>;
+
 public:
-	using token_type = token<T_TokenType>;
+	using token_type = token_t;
 
 	struct rule
 	{
@@ -95,14 +99,15 @@ public:
 		bool skip{};
 	};
 
-	explicit lexer(std::string_view source)
-		: lexer(source, {})
+	explicit lexer(std::string_view source, error_type error_token = std::nullopt)
+		: lexer(source, {}, error_token)
 	{
 	}
 
-	lexer(const std::string_view source, std::vector<rule> const& rules)
+	lexer(const std::string_view source, std::vector<rule> rules, error_type error_token = std::nullopt)
 		: m_source{ source }
-		, m_rules{ rules }
+		, m_rules{ std::move(rules) }
+		, m_error_type{ error_token }
 	{
 	}
 
@@ -118,7 +123,7 @@ public:
 		return *this;
 	}
 
-	lexer& change_source(const std::string_view source, const bool with_clear = true)
+	lexer& change_source(const std::string_view source)
 	{
 		m_source = source;
 
@@ -128,17 +133,19 @@ public:
 
 		m_peek_buffer.reset();
 
-		if (with_clear)
-		{
-			m_rules.clear();
-		}
+		return *this;
+	}
+
+	lexer& clear_rules()
+	{
+		m_rules.clear();
 
 		return *this;
 	}
 
 	std::optional<token_type> peek()
 	{
-		if (m_peek_buffer.has_value())
+		if (!m_peek_buffer)
 		{
 			m_peek_buffer = read_next_token();
 		}
@@ -148,15 +155,11 @@ public:
 
 	std::optional<token_type> next()
 	{
-		if (m_peek_buffer)
-		{
-			auto token = m_peek_buffer;
-			m_peek_buffer.reset();
+		auto token = peek();
 
-			return token;
-		}
+		m_peek_buffer.reset();
 
-		return read_next_token();
+		return token;
 	}
 
 	std::vector<token_type> tokenize()
@@ -174,18 +177,18 @@ private:
 	struct match_result
 	{
 		rule const* matched_rule;
-
-		size_t length{};
+		std::size_t length{};
 	};
 
 	std::string_view m_source;
 	std::vector<rule> m_rules;
 
-	size_t m_cursor = 0;
-	size_t m_line = 1;
-	size_t m_column = 1;
+	std::size_t m_cursor = 0;
+	std::size_t m_line = 1;
+	std::size_t m_column = 1;
 
-	std::optional<token_type> m_peek_buffer{};
+	optional_token m_peek_buffer{};
+	error_type m_error_type{};
 
 	std::optional<token_type> read_next_token()
 	{
@@ -195,15 +198,12 @@ private:
 
 			if (!match)
 			{
-				std::string error = "Unexpected character '";
-				error += m_source[m_cursor];
-				error += std::format("' at line {}, column {}", m_line, m_column);
-				throw std::runtime_error(error);
+				return throw_or_error_and_advance();
 			}
 
-			size_t start_line = m_line;
-			size_t start_col = m_column;
-			size_t start_offset = m_cursor;
+			std::size_t start_line = m_line;
+			std::size_t start_col = m_column;
+			std::size_t start_offset = m_cursor;
 
 			advance_cursor(match->length);
 
@@ -227,12 +227,11 @@ private:
 	std::optional<match_result> find_longest_match()
 	{
 		const rule* best_rule = nullptr;
-		size_t max_len = 0;
+		std::size_t max_len = 0;
 
 		for (const auto& rule : m_rules)
 		{
 			const std::size_t current_len = rule.matcher.find_match(m_source, m_cursor);
-
 			if (current_len > max_len)
 			{
 				max_len = current_len;
@@ -250,7 +249,7 @@ private:
 
 	void advance_cursor(const size_t length)
 	{
-		for (size_t i = 0; i < length; ++i)
+		for (std::size_t i = 0; i < length; ++i)
 		{
 			if (m_source[m_cursor] == '\n')
 			{
@@ -263,6 +262,30 @@ private:
 			}
 			++m_cursor;
 		}
+	}
+
+	token_type throw_or_error_and_advance()
+	{
+		if (!m_error_type)
+		{
+			throw std::runtime_error(std::format(
+				"Unexpected character '{}' at line {}, column {}",
+				m_source[m_cursor], m_line, m_column));
+		}
+
+		std::size_t start_line = m_line;
+		std::size_t start_col = m_column;
+		std::size_t start_offset = m_cursor;
+
+		advance_cursor(1);
+
+		return token_type{
+			*m_error_type,
+			m_source.substr(start_offset, 1),
+			start_line,
+			start_col,
+			start_offset
+		};
 	}
 };
 
