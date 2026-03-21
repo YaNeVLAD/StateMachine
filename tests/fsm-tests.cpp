@@ -9,6 +9,9 @@
 #include <fsm/ll1/table_io.hpp>
 #include <fsm/ll1/table_printer.hpp>
 #include <fsm/recognizer.hpp>
+#include <fsm/slr/parser.hpp>
+#include <fsm/slr/table.hpp>
+#include <fsm/slr/table_builder.hpp>
 #include <fsm/string_symbol_generator.hpp>
 
 using namespace fsm;
@@ -616,7 +619,7 @@ TEST(LL1TableTest, BuildTableWithCustomType)
 	struct MySymbol
 	{
 		std::string value;
-		bool is_terminal;
+		bool is_terminal{};
 
 		bool operator<(const MySymbol& other) const
 		{
@@ -1287,52 +1290,450 @@ TEST(LL1Table, SaveAndLoadTest)
 	}
 }
 
-#if 0
-
-TEST(CYKTest, LoadFromFile)
+// S -> a B
+// B -> b
+TEST(SLR1TableBuilderTest, CorrectnessAndLogic)
 {
-	std::ifstream file("res/cfg_grammar.txt");
-	const auto grammar = cfg_load(file);
+	using namespace fsm::slr;
+	using namespace fsm::slr::actions;
 
-	std::cout << "--- Loaded Grammar ---\n";
-	grammar.print();
+	basic_cfg<std::string> g(
+		{ "S", "B" },
+		{ "a", "b" },
+		{ { "S", { "a", "B" } },
+			{ "B", { "b" } } },
+		"S");
 
-	const auto cnf = grammar | to_chomsky_normal_form;
+	auto builder = table_builder(g)
+					   .with_epsilon("ε")
+					   .with_end_marker("$")
+					   .with_augmented_start("S'");
 
-	std::cout << "\n--- CNF Grammar ---\n";
-	cnf.print();
+	auto table = builder.build();
 
-	const std::vector<std::string> word = {};
-	const std::string word_str = "bbbcaaa";
-	const auto res = algorithms::cyk(cnf, word_str);
-	algorithms::print_cyk_table(res, word_str);
+	// 0 - это всегда стартовое состояние, замыкание от S' -> . S
+	using table_state_type = decltype(table)::state_type;
 
-	if (res)
-	{
-		std::cout << "\nWord is VALID.\n";
-	}
-	else
-	{
-		std::cout << "\nWord is INVALID.\n";
-	}
+	table_state_type state_0 = 0;
+
+	auto state_1 = table.get_goto(state_0, "S");
+	ASSERT_NE(state_1, table.invalid_state) << "Must be S translation";
+
+	auto& act_accept = table.get_action(state_1, "$");
+	EXPECT_TRUE(is_accept(act_accept));
+
+	auto& act_shift_a = table.get_action(state_0, "a");
+	ASSERT_TRUE(is_shift(act_shift_a));
+	auto state_2 = as_shift(act_shift_a).target_state;
+
+	auto state_3 = table.get_goto(state_2, "B");
+	ASSERT_NE(state_3, -1);
+
+	auto act_reduce_S = table.get_action(state_3, "$");
+	ASSERT_TRUE(is_reduce(act_reduce_S));
+	auto reduce_rule_S = as_reduce(act_reduce_S).rule;
+	EXPECT_EQ(reduce_rule_S.lhs, "S");
+	EXPECT_EQ(reduce_rule_S.rhs.size(), 2);
+
+	auto act_shift_b = table.get_action(state_2, "b");
+	ASSERT_TRUE(is_shift(act_shift_b));
+	auto state_4 = as_shift(act_shift_b).target_state;
+
+	auto act_reduce_B = table.get_action(state_4, "$");
+	ASSERT_TRUE(is_reduce(act_reduce_B));
+	auto reduce_rule_B = as_reduce(act_reduce_B).rule;
+	EXPECT_EQ(reduce_rule_B.lhs, "B");
+	EXPECT_EQ(reduce_rule_B.rhs[0], "b");
 }
 
-TEST(CFGTest, LoadFromFile)
+// S -> x
+TEST(SLR1TableBuilderTest, CustomSymbolType)
 {
-	std::ifstream file("res/cfg_grammar.txt");
-	const auto grammar = cfg_load(file);
+	using namespace fsm::slr;
+	using namespace fsm::slr::actions;
 
-	std::cout << "--- Loaded Grammar ---\n";
-	grammar.print();
+	struct Token
+	{
+		int id{};
+		std::string value;
 
-	const auto reduced = grammar
-		| remove_epsilon_rules
-		| remove_unit_rules
-		| remove_useless_symbols
-		| merge_equivalent_symbols;
+		bool operator==(const Token& other) const { return id == other.id; }
+		bool operator<(const Token& other) const { return id < other.id; }
+	};
 
-	std::cout << "--- Reduced grammar ---\n";
-	reduced.print();
+	Token S{ 1, "S" };
+	Token S_prime{ 0, "S'" };
+	Token term_x{ 2, "x" };
+	Token eps{ -1, "ε" };
+	Token eof{ 99, "$" };
+
+	basic_cfg g(
+		{ S }, { term_x },
+		{ { S, { term_x } } },
+		S);
+
+	auto builder = table_builder(g)
+					   .with_epsilon(eps)
+					   .with_end_marker(eof)
+					   .with_augmented_start(S_prime);
+
+	auto table = builder.build();
+
+	auto& action = table.get_action(0, term_x);
+	ASSERT_TRUE(is_shift(action));
+
+	auto state_after_x = as_shift(action).target_state;
+
+	auto& reduce_action = table.get_action(state_after_x, eof);
+	EXPECT_TRUE(is_reduce(reduce_action));
+	EXPECT_EQ(as_reduce(reduce_action).rule.lhs.id, S.id);
 }
 
-#endif
+class SLRParserTest : public testing::Test
+{
+protected:
+	template <typename T_Expected, typename T_Variant>
+	[[nodiscard]] bool is_event(const T_Variant& v) const
+	{
+		return std::holds_alternative<T_Expected>(v);
+	}
+};
+
+// S -> a
+TEST_F(SLRParserTest, SuccessfulParseSequence)
+{
+	using namespace fsm::slr;
+
+	basic_cfg<std::string> g(
+		{ "S" }, { "a" },
+		{ { "S", { "a" } } },
+		"S");
+
+	auto table = table_builder(g)
+					 .with_epsilon("ε")
+					 .with_end_marker("$")
+					 .with_augmented_start("S'")
+					 .build();
+
+	parser p(table, "ε");
+
+	std::vector<std::string> input = { "a" };
+	p.parse(input);
+	EXPECT_FALSE(p.is_finished());
+
+	auto e1 = p.next();
+	ASSERT_TRUE(events::is_shift(*e1));
+	EXPECT_EQ(events::as_shift(*e1).token, "a");
+	EXPECT_FALSE(p.is_finished());
+
+	auto e2 = p.next();
+	ASSERT_TRUE(events::is_reduce(*e2));
+	EXPECT_EQ(events::as_reduce(*e2).rule.lhs, "S");
+	EXPECT_FALSE(p.is_finished());
+
+	auto e3 = p.next();
+	ASSERT_TRUE(events::is_accept(*e3));
+	EXPECT_TRUE(p.is_finished());
+}
+
+// S -> a B
+// B -> ε
+TEST_F(SLRParserTest, EpsilonReductionLogic)
+{
+	using namespace fsm::slr;
+
+	basic_cfg<std::string> g(
+		{ "S", "B" }, { "a" },
+		{ { "S", { "a", "B" } }, { "B", { "ε" } } },
+		"S");
+
+	auto table = table_builder(g)
+					 .with_epsilon("ε")
+					 .with_end_marker("$")
+					 .with_augmented_start("S'")
+					 .build();
+
+	parser p(table, "ε");
+
+	std::vector<std::string> input = { "a" };
+	p.parse(input);
+
+	auto e1 = p.next();
+	ASSERT_TRUE(events::is_shift(*e1));
+
+	auto e2 = p.next();
+	ASSERT_TRUE(events::is_reduce(*e2));
+	auto rule_B = events::as_reduce(*e2).rule;
+	EXPECT_EQ(rule_B.lhs, "B");
+	ASSERT_EQ(rule_B.rhs.size(), 1);
+	EXPECT_EQ(rule_B.rhs[0], "ε");
+
+	auto e3 = p.next();
+	ASSERT_TRUE(events::is_reduce(*e3));
+	EXPECT_EQ(events::as_reduce(*e3).rule.lhs, "S");
+
+	auto e4 = p.next();
+	ASSERT_TRUE(events::is_accept(*e4));
+}
+
+slr::table<char> create_mock_table()
+{
+	slr::table<char> tbl;
+	tbl.set_end_marker('$');
+
+	const cfg_rule rule{ 'S', { 'a' } };
+	tbl.add_action(0, 'a', slr::action_shift<std::size_t>{ 1 });
+	tbl.add_action(1, '$', slr::action_reduce{ rule });
+	tbl.add_goto(0, 'S', 2);
+	tbl.add_action(2, '$', slr::action_accept{});
+
+	return tbl;
+}
+
+TEST(SlrParserTest, RangeBasedForYieldsCorrectEvents)
+{
+	const auto tbl = create_mock_table();
+	slr::parser p(tbl, 'e');
+
+	std::vector input = { 'a' };
+	std::vector<std::size_t> event_indices;
+
+	for (const auto& event : p.parse(input))
+	{
+		event_indices.push_back(event.index());
+	}
+
+	ASSERT_EQ(event_indices.size(), 3);
+	EXPECT_EQ(event_indices[0], 0);
+	EXPECT_EQ(event_indices[1], 1);
+	EXPECT_EQ(event_indices[2], 2);
+}
+
+TEST(SlrParserTest, WhileLoopHandlesErrorsCorrectly)
+{
+	const auto tbl = create_mock_table();
+	slr::parser p(tbl, 'e');
+
+	std::vector bad_input = { 'b' };
+	p.parse(bad_input);
+
+	std::vector<std::size_t> event_indices;
+
+	while (auto opt_event = p.next())
+	{
+		event_indices.push_back(opt_event->index());
+
+		if (slr::events::is_error(*opt_event))
+		{
+			auto [unexpected_token] = slr::events::as_error(*opt_event);
+			EXPECT_EQ(unexpected_token, 'b');
+		}
+	}
+
+	ASSERT_EQ(event_indices.size(), 1);
+	EXPECT_EQ(event_indices[0], 3);
+
+	EXPECT_TRUE(p.is_finished());
+
+	EXPECT_FALSE(p.next().has_value());
+}
+
+// S -> a
+TEST_F(SLRParserTest, SyntaxErrorHandling)
+{
+	using namespace fsm::slr;
+
+	basic_cfg<std::string> g(
+		{ "S" }, { "a" },
+		{ { "S", { "a" } } },
+		"S");
+
+	auto table = table_builder(g)
+					 .with_epsilon("ε")
+					 .with_end_marker("$")
+					 .with_augmented_start("S'")
+					 .build();
+
+	parser p(table, "ε");
+
+	std::vector<std::string> input = { "b" };
+	p.parse(input);
+
+	auto e1 = p.next();
+	ASSERT_TRUE(events::is_error(*e1));
+	EXPECT_EQ(events::as_error(*e1).unexpected_token, "b");
+
+	EXPECT_TRUE(p.is_finished());
+
+	auto e2 = p.next();
+	ASSERT_TRUE(!e2.has_value());
+}
+
+class SLRCollisionPolicyTest : public testing::Test
+{
+protected:
+	// ------------------------------------------------------------------------
+	// Grammar: Shift/Reduce conflict (Dangling Else)
+	// S' -> S
+	// S  -> i S       (if ... then ...)
+	// S  -> i S e S   (if ... then ... else ...)
+	// S  -> a         (statement)
+	//
+	// Input: "i a e a"
+	// Conflict: "i S" (Reduce) or 'e' (Shift).
+	// ------------------------------------------------------------------------
+	static basic_cfg<std::string> get_sr_conflict_grammar()
+	{
+		return basic_cfg<std::string>(
+			{ "S'", "S" }, { "i", "e", "a" },
+			{ { "S'", { "S" } },
+				{ "S", { "i", "S" } },
+				{ "S", { "i", "S", "e", "S" } },
+				{ "S", { "a" } } },
+			"S'");
+	}
+
+	// ------------------------------------------------------------------------
+	// Grammar: Reduce/Reduce conflict
+	// S' -> S
+	// S -> A | B
+	// A -> a
+	// B -> a
+	// ------------------------------------------------------------------------
+	static basic_cfg<std::string> get_rr_conflict_grammar()
+	{
+		return basic_cfg<std::string>(
+			{ "S'", "S", "A", "B" }, { "a" },
+			{ { "S'", { "S" } },
+				{ "S", { "A" } },
+				{ "S", { "B" } },
+				{ "A", { "a" } },
+				{ "B", { "a" } } },
+			"S'");
+	}
+};
+
+TEST_F(SLRCollisionPolicyTest, ThrowExceptionByDefault)
+{
+	auto g = get_sr_conflict_grammar();
+	auto builder = slr::table_builder(g).with_epsilon("ε").with_end_marker("$");
+
+	EXPECT_THROW(builder.build(), std::runtime_error);
+	EXPECT_THROW(builder.build(slr::collision_policy::throw_exception), std::runtime_error);
+}
+
+TEST_F(SLRCollisionPolicyTest, PreferShiftResolvesSR)
+{
+	using namespace fsm::slr;
+	using namespace fsm::slr::actions;
+
+	auto g = get_sr_conflict_grammar();
+	auto builder = table_builder(g).with_epsilon("ε").with_end_marker("$");
+	auto table = builder.build(collision_policy::prefer_shift);
+
+	// Shift 'i'
+	auto act_i = table.get_action(0, "i");
+	ASSERT_TRUE(is_shift(act_i));
+	auto state_after_i = as_shift(act_i).target_state;
+
+	// Goto 'S'
+	auto state_conflict = table.get_goto(state_after_i, "S");
+	ASSERT_NE(state_conflict, decltype(table)::invalid_state);
+
+	// Current state is { S -> i S ., S -> i S . e S }
+	auto act_e = table.get_action(state_conflict, "e");
+	EXPECT_TRUE(is_shift(act_e));
+}
+
+TEST_F(SLRCollisionPolicyTest, KeepFirstResolvesSR)
+{
+	using namespace fsm::slr;
+	using namespace fsm::slr::actions;
+
+	auto g = get_sr_conflict_grammar();
+	auto builder = table_builder(g).with_epsilon("ε").with_end_marker("$");
+	auto table = builder.build(collision_policy::keep_first);
+
+	auto act_i = table.get_action(0, "i");
+	auto state_conflict = table.get_goto(as_shift(act_i).target_state, "S");
+
+	// In std::set<T, std::less<T>> "S -> i S ." < "S -> i S . e S",
+	auto act_e = table.get_action(state_conflict, "e");
+
+	ASSERT_TRUE(is_reduce(act_e));
+	EXPECT_EQ(as_reduce(act_e).rule.lhs, "S");
+	EXPECT_EQ(as_reduce(act_e).rule.rhs.size(), 2); // Reduced S -> iS
+}
+
+TEST_F(SLRCollisionPolicyTest, KeepLastResolvesSR)
+{
+	using namespace fsm::slr;
+	using namespace fsm::slr::actions;
+
+	auto g = get_sr_conflict_grammar();
+	auto builder = table_builder(g).with_epsilon("ε").with_end_marker("$");
+	auto table = builder.build(collision_policy::keep_last);
+
+	auto act_i = table.get_action(0, "i");
+	auto state_conflict = table.get_goto(as_shift(act_i).target_state, "S");
+
+	auto act_e = table.get_action(state_conflict, "e");
+	EXPECT_TRUE(is_shift(act_e));
+}
+
+TEST_F(SLRCollisionPolicyTest, PreferShiftResolvesRRAsKeepFirst)
+{
+	using namespace fsm::slr;
+	using namespace fsm::slr::actions;
+
+	auto g = get_rr_conflict_grammar();
+	auto builder = table_builder(g).with_epsilon("ε").with_end_marker("$");
+	auto table = builder.build(collision_policy::prefer_shift);
+
+	// Reducing 'a' leads to a conflict state { A -> a ., B -> a . }
+	auto act_a = table.get_action(0, "a");
+	ASSERT_TRUE(is_shift(act_a));
+	auto state_conflict = as_shift(act_a).target_state;
+
+	auto act_eof = table.get_action(state_conflict, "$");
+
+	ASSERT_TRUE(is_reduce(act_eof));
+	// A < B
+	EXPECT_EQ(as_reduce(act_eof).rule.lhs, "A");
+}
+
+TEST_F(SLRCollisionPolicyTest, KeepLastResolvesRR)
+{
+	using namespace fsm::slr;
+	using namespace fsm::slr::actions;
+
+	auto g = get_rr_conflict_grammar();
+	auto builder = table_builder(g).with_epsilon("ε").with_end_marker("$");
+	auto table = builder.build(collision_policy::keep_last);
+
+	auto act_a = table.get_action(0, "a");
+	auto state_conflict = as_shift(act_a).target_state;
+
+	auto act_eof = table.get_action(state_conflict, "$");
+
+	ASSERT_TRUE(is_reduce(act_eof));
+	EXPECT_EQ(as_reduce(act_eof).rule.lhs, "B");
+}
+
+TEST_F(SLRCollisionPolicyTest, WarningCallbackIsTriggered)
+{
+	std::vector<std::string> warnings;
+	const auto builder = slr::table_builder(get_sr_conflict_grammar())
+							 .with_epsilon("ε")
+							 .with_end_marker("$")
+							 .on_warning([&](const std::string& msg) {
+								 warnings.push_back(msg);
+							 });
+
+	std::ignore = builder.build(slr::collision_policy::prefer_shift);
+
+	ASSERT_FALSE(warnings.empty());
+
+	EXPECT_TRUE(warnings.front().find("Shift/Reduce conflict") != std::string::npos);
+	EXPECT_TRUE(warnings.front().find("Resolved: Prefer Shift") != std::string::npos);
+}

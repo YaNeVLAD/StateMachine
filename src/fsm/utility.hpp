@@ -7,6 +7,7 @@
 #include <ranges>
 #include <string_view>
 #include <type_traits>
+#include <variant>
 
 namespace fsm::utility
 {
@@ -64,6 +65,27 @@ constexpr auto trim(
 	auto end = std::ranges::find_if_not(range | std::views::reverse, is_delimiter).base();
 
 	return return_type{ start, end };
+}
+
+template <typename... Ts>
+struct overloaded : Ts...
+{
+	using Ts::operator()...;
+};
+
+template <typename... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
+
+template <typename Variant, typename... Fs>
+constexpr auto overloaded_visitor(Variant&& v, Fs&&... fs)
+{
+	return std::visit(overloaded{ std::forward<Fs>(fs)... }, std::forward<Variant>(v));
+}
+
+template <typename... Fs>
+auto make_visitor(Fs&&... fs)
+{
+	return overloaded{ std::forward<Fs>(fs)... };
 }
 } // namespace fsm::utility
 

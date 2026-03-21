@@ -1150,6 +1150,164 @@ public:
 private:
 };
 
+template <typename T_Symbol, typename T_Compare>
+using symbol_storage = std::map<T_Symbol, std::set<T_Symbol, T_Compare>, T_Compare>;
+
+class ComputeFirstOf_fn
+{
+public:
+	template <typename T_Symbol, typename T_Compare>
+	static std::set<T_Symbol> operator()(
+		const std::vector<T_Symbol>& rhs,
+		const symbol_storage<T_Symbol, T_Compare>& first,
+		const T_Symbol& epsilon)
+	{
+		std::set<T_Symbol> result;
+		bool all_derive_epsilon = true;
+
+		for (const auto& sym : rhs)
+		{
+			if (!first.contains(sym))
+			{
+				result.insert(sym);
+				all_derive_epsilon = false;
+				break;
+			}
+
+			const auto& sym_first = first.at(sym);
+			for (const auto& a : sym_first)
+			{
+				if (a != epsilon)
+				{
+					result.insert(a);
+				}
+			}
+
+			if (!sym_first.contains(epsilon))
+			{
+				all_derive_epsilon = false;
+				break;
+			}
+		}
+
+		if (all_derive_epsilon || rhs.empty())
+		{
+			result.insert(epsilon);
+		}
+
+		return result;
+	}
+};
+inline constexpr ComputeFirstOf_fn compute_first_of;
+
+class ComputeFirst_fn
+{
+public:
+	template <typename T_Symbol, typename T_Compare>
+	symbol_storage<T_Symbol, T_Compare>
+	operator()(const basic_cfg<T_Symbol, T_Compare>& grammar, const T_Symbol& epsilon) const
+	{
+		symbol_storage<T_Symbol, T_Compare> first;
+
+		for (const auto& term : grammar.terminals())
+		{
+			first[term] = { term };
+		}
+		first[epsilon] = { epsilon };
+
+		for (const auto& nt : grammar.non_terminals())
+		{
+			first[nt] = {};
+		}
+
+		bool changed = true;
+		while (changed)
+		{
+			changed = false;
+			for (const auto& rule : grammar.rules())
+			{
+				size_t old_size = first[rule.lhs].size();
+
+				auto rhs_first = compute_first_of(rule.rhs, first, epsilon);
+				first[rule.lhs].insert(rhs_first.begin(), rhs_first.end());
+
+				if (first[rule.lhs].size() > old_size)
+				{
+					changed = true;
+				}
+			}
+		}
+
+		return first;
+	}
+};
+
+class ComputeFollow_fn
+{
+public:
+	template <typename T_Symbol, typename T_Compare>
+	static symbol_storage<T_Symbol, T_Compare> operator()(
+		const basic_cfg<T_Symbol, T_Compare>& g,
+		const symbol_storage<T_Symbol, T_Compare>& first,
+		const T_Symbol& epsilon,
+		const T_Symbol& eof_marker)
+	{
+		symbol_storage<T_Symbol, T_Compare> follow;
+
+		for (const auto& nt : g.non_terminals())
+		{
+			follow[nt] = {};
+		}
+
+		follow[g.start_symbol()].insert(eof_marker);
+
+		bool changed = true;
+		while (changed)
+		{
+			changed = false;
+			for (const auto& rule : g.rules())
+			{
+				const auto& A = rule.lhs;
+
+				for (std::size_t i = 0; i < rule.rhs.size(); ++i)
+				{
+					const auto& B = rule.rhs[i];
+
+					if (g.is_non_terminal(B))
+					{
+						std::size_t old_size = follow[B].size();
+
+						std::vector<T_Symbol> beta(rule.rhs.begin() + i + 1, rule.rhs.end());
+						auto first_beta = compute_first_of(beta, first, epsilon);
+
+						for (const auto& b : first_beta)
+						{
+							if (b != epsilon)
+							{
+								follow[B].insert(b);
+							}
+						}
+
+						if (beta.empty() || first_beta.contains(epsilon))
+						{
+							for (const auto& a : follow[A])
+							{
+								follow[B].insert(a);
+							}
+						}
+
+						if (follow[B].size() > old_size)
+						{
+							changed = true;
+						}
+					}
+				}
+			}
+		}
+
+		return follow;
+	}
+};
 } // namespace algorithms::impl
 
 namespace algorithms
@@ -1178,6 +1336,10 @@ inline constexpr impl::RemoveLeftRecursion_fn remove_left_recursion;
 inline constexpr impl::LeftFactor_fn left_factor;
 
 inline constexpr impl::ChomskyNormalForm_fn to_chomsky_normal_form;
+
+inline constexpr impl::ComputeFirst_fn compute_first;
+
+inline constexpr impl::ComputeFollow_fn compute_follow;
 
 inline constexpr impl::Cyk_fn cyk;
 
