@@ -21,7 +21,7 @@ namespace fsm
  */
 template <
 	concepts::is_std_string_constructible T_Symbol = std::string,
-	typename T_Compare = std::less<std::string>>
+	typename T_Compare = std::less<T_Symbol>>
 basic_cfg<T_Symbol, T_Compare>
 cfg_load(std::istream& in = std::cin)
 {
