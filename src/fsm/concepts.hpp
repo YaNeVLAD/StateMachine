@@ -63,6 +63,11 @@ concept is_string_like = std::ranges::common_range<T>
 	   };
 
 template <typename T>
+concept is_std_string_constructible = std::is_default_constructible_v<T>
+	&& std::constructible_from<T, std::string>
+	&& std::regular<T>;
+
+template <typename T>
 concept streamable = requires(std::ostream& os, const std::remove_reference_t<T>& a) {
 	{ os << a } -> std::same_as<std::ostream&>;
 };
