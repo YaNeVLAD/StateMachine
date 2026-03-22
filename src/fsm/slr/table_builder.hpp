@@ -80,6 +80,7 @@ class table_builder
 	using grammar_t = basic_cfg<T_Symbol, T_Compare>;
 	using item_t = lr0_item<T_Symbol>;
 	using state_t = std::set<item_t>;
+	using identity_symbol = std::type_identity_t<T_Symbol>;
 
 public:
 	using grammar_type = grammar_t;
@@ -88,6 +89,16 @@ public:
 
 	explicit table_builder(const grammar_t& grammar)
 		: m_grammar(grammar)
+	{
+	}
+
+	table_builder(
+		const grammar_t& grammar,
+		const identity_symbol& epsilon,
+		const identity_symbol& end_marker)
+		: m_grammar(grammar)
+		, m_epsilon(epsilon)
+		, m_eof(end_marker)
 	{
 	}
 
@@ -221,8 +232,7 @@ public:
 
 		for (tbl_state_t i = 0; i < states.size(); ++i)
 		{
-			const state_t& I = states[i];
-			for (const auto& item : I)
+			for (const state_t& I = states[i]; const auto& item : I)
 			{
 				if (!item.is_complete())
 				{ // A -> alpha . a beta (SHIFT)

@@ -12,6 +12,7 @@
 #include <fsm/slr/parser.hpp>
 #include <fsm/slr/table.hpp>
 #include <fsm/slr/table_builder.hpp>
+#include <fsm/slr/table_printer.hpp>
 #include <fsm/string_symbol_generator.hpp>
 
 using namespace fsm;
@@ -1736,4 +1737,18 @@ TEST_F(SLRCollisionPolicyTest, WarningCallbackIsTriggered)
 
 	EXPECT_TRUE(warnings.front().find("Shift/Reduce conflict") != std::string::npos);
 	EXPECT_TRUE(warnings.front().find("Resolved: Prefer Shift") != std::string::npos);
+}
+
+TEST(SLRPrinter, SuccessfullyPrintsSLRTable)
+{
+	std::ifstream file("res/slr_grammar_test2.txt");
+	const auto grammar = cfg_load(file);
+
+	const auto builder = slr::table_builder(grammar, "ε", "$");
+
+	auto table = builder.build();
+	std::cout << std::string(50, '=') << std::endl;
+
+	std::ofstream out("res/OUT_slr_grammar_test2.txt");
+	slr::print_table(table, out);
 }
