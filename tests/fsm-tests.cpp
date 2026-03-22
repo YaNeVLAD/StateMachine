@@ -1525,7 +1525,7 @@ TEST(SlrParserTest, WhileLoopHandlesErrorsCorrectly)
 
 		if (slr::events::is_error(*opt_event))
 		{
-			auto [unexpected_token] = slr::events::as_error(*opt_event);
+			auto [unexpected_token, expected_tokens] = slr::events::as_error(*opt_event);
 			EXPECT_EQ(unexpected_token, 'b');
 		}
 	}

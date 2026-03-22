@@ -31,6 +31,7 @@ template <typename T_Symbol>
 struct event_error
 {
 	T_Symbol unexpected_token;
+	std::vector<T_Symbol> expected_tokens;
 };
 
 template <typename T_Symbol>
@@ -251,7 +252,18 @@ public:
 			[&](const action_error&) -> std::optional<event_type> {
 				m_is_finished = true;
 
-				return event_error<T_Symbol>{ current_token };
+				std::vector<T_Symbol> expected_tokens;
+				const auto& row = m_table.action_table().at(current_state);
+				expected_tokens.reserve(row.size());
+				for (const auto& [terminal, action] : row)
+				{
+					if (!actions::is_error(action))
+					{
+						expected_tokens.emplace_back(terminal);
+					}
+				}
+
+				return event_error<T_Symbol>{ current_token, expected_tokens };
 			});
 	}
 
