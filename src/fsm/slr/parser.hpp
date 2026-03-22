@@ -20,6 +20,7 @@ template <typename T_Symbol>
 struct event_reduce
 {
 	cfg_rule<T_Symbol> rule;
+	std::size_t pop_count;
 };
 
 struct event_accept
@@ -158,6 +159,17 @@ public:
 	{
 	}
 
+	void begin(std::span<const T_Symbol> input)
+	{
+		m_input = input;
+		m_input_ptr = 0;
+
+		m_state_stack.clear();
+		m_state_stack.push_back(0);
+
+		m_is_finished = false;
+	}
+
 	iter_range parse(std::span<const T_Symbol> input)
 	{
 		m_input = input;
@@ -229,7 +241,7 @@ public:
 
 				m_state_stack.emplace_back(next_state.value());
 
-				return event_reduce<T_Symbol>{ rule };
+				return event_reduce<T_Symbol>{ rule, pop_count };
 			},
 			[&](const action_accept&) -> std::optional<event_type> {
 				m_is_finished = true;
