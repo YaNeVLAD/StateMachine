@@ -3,16 +3,9 @@
 
 #include <fsm/cfg.hpp>
 #include <fsm/integer_symbol_generator.hpp>
-#include <fsm/ll1/accepts.hpp>
-#include <fsm/ll1/table.hpp>
-#include <fsm/ll1/table_builder.hpp>
-#include <fsm/ll1/table_io.hpp>
-#include <fsm/ll1/table_printer.hpp>
+#include <fsm/ll1.hpp>
 #include <fsm/recognizer.hpp>
-#include <fsm/slr/parser.hpp>
-#include <fsm/slr/table.hpp>
-#include <fsm/slr/table_builder.hpp>
-#include <fsm/slr/table_printer.hpp>
+#include <fsm/slr.hpp>
 #include <fsm/string_symbol_generator.hpp>
 
 using namespace fsm;

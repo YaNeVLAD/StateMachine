@@ -3,33 +3,32 @@
 
 #include "table.hpp"
 
-#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <string>
 
 namespace fsm::slr
 {
-
-template <typename T_Symbol, typename T_State>
-std::string action_to_string(const action<T_Symbol, T_State>& act)
-{
-	using namespace fsm::slr::actions;
-	// clang-format off
-	if (is_error(act)) return "";
-	if (is_accept(act)) return "accept";
-	if (is_shift(act)) return "s" + std::to_string(as_shift(act).target_state);
-	if (is_reduce(act)) return "r(" + as_reduce(act).rule.lhs + ")";
-	// clang-format on
-
-	return "?";
-}
-
 template <typename T_Symbol, typename T_Compare>
-void print_table(const table<T_Symbol, T_Compare>& table, std::ostream& out = std::cout)
+void print_table(const slr::table<T_Symbol, T_Compare>& table, std::ostream& out = std::cout)
 {
-	std::set<T_Symbol> terminals;
-	std::set<T_Symbol> non_terminals;
+	using table_type = slr::table<T_Symbol, T_Compare>;
+	using action_type = typename table_type::action_type;
+	using symbol_type = typename table_type::symbol_type;
+	using state_type = typename table_type::state_type;
+
+	std::set<symbol_type> terminals;
+	std::set<symbol_type> non_terminals;
+
+	const auto to_string = [](const action_type& action) -> std::string {
+		using namespace fsm::slr::actions;
+		return utility::overloaded_visitor(
+			action,
+			[](const action_error&) -> std::string { return ""; },
+			[](const action_accept&) -> std::string { return "accept"; },
+			[](const action_reduce<symbol_type>& act) -> std::string { return "r(" + act.rule.lhs + ")"; },
+			[](const action_shift<state_type>& act) -> std::string { return "s(" + std::to_string(act.target_state) + ")"; });
+	};
 
 	for (const auto& [state, map] : table.action_table())
 	{
@@ -77,7 +76,7 @@ void print_table(const table<T_Symbol, T_Compare>& table, std::ostream& out = st
 
 		for (const auto& t : terminals)
 		{
-			out << std::setw(8) << action_to_string(table.get_action(i, t)) << " ";
+			out << std::setw(8) << to_string(table.get_action(i, t)) << " ";
 		}
 
 		out << " | ";

@@ -76,6 +76,7 @@ class table
 
 public:
 	using action_type = action_t;
+	using symbol_type = T_Symbol;
 	using state_type = state_t;
 	using optional_state = std::optional<state_type>;
 
