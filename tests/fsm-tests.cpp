@@ -1,3 +1,4 @@
+#include <execution>
 #include <gtest/gtest.h>
 #include <stack>
 
@@ -1744,4 +1745,22 @@ TEST(SLRPrinter, SuccessfullyPrintsSLRTable)
 
 	std::ofstream out("res/OUT_slr_grammar_test2.txt");
 	slr::print_table(table, out);
+
+	auto parser = slr::parser(table, "ε");
+	std::vector<std::string> src = { "a", "x", "a", "y", "b" };
+	parser.begin(src);
+	while (const auto event = parser.next())
+	{
+		if (!event)
+		{
+			continue;
+		}
+
+		utility::overloaded_visitor(
+			*event,
+			[](const slr::event_accept&) { std::cout << "accept" << std::endl; },
+			[](const slr::event_error<std::string>& e) { std::cout << "error: expected " << e.unexpected_token; },
+			[](const slr::event_shift<std::string>& e) { std::cout << "shift: " << e.token << std::endl; },
+			[](const slr::event_reduce<std::string>& e) { std::cout << "reduce: " << e.rule.lhs << std::endl; });
+	}
 }
