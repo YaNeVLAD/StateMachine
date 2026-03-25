@@ -6,6 +6,7 @@
 #include "basic_cfg.hpp"
 
 #include <algorithm>
+#include <iomanip>
 #include <ranges>
 
 namespace fsm
