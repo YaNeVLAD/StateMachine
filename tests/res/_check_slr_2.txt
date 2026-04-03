@@ -1,0 +1,7 @@
+S -> P = E | while E do S
+P -> I | I (E A)
+A -> \e | , E A
+E -> E + T | T
+T -> T * F | F
+F -> P | ( E )
+I -> a | b | c

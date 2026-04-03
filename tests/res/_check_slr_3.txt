@@ -1,0 +1,4 @@
+S -> type I = T B
+T -> int | record I : T B end
+B -> \e | ; I : T B
+I -> a | b | c

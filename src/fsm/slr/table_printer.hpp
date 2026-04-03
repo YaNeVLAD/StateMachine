@@ -60,7 +60,7 @@ void print_table(const slr::table<T_Symbol, T_Compare>& table, std::ostream& out
 		<< std::string(20 + (terminals.size() + non_terminals.size()) * 9, '-')
 		<< "\n";
 
-	size_t max_state = 0;
+	std::size_t max_state = 0;
 	if (!table.action_table().empty())
 	{
 		max_state = std::max(max_state, table.action_table().rbegin()->first);
@@ -70,7 +70,7 @@ void print_table(const slr::table<T_Symbol, T_Compare>& table, std::ostream& out
 		max_state = std::max(max_state, table.goto_table().rbegin()->first);
 	}
 
-	for (size_t i = 0; i <= max_state; ++i)
+	for (std::size_t i = 0; i <= max_state; ++i)
 	{
 		out << std::setw(8) << i << " | ";
 
@@ -88,6 +88,86 @@ void print_table(const slr::table<T_Symbol, T_Compare>& table, std::ostream& out
 				out << std::setw(8) << *res << " ";
 			else
 				out << std::setw(8) << "" << " ";
+		}
+		out << "\n";
+	}
+}
+
+template <typename T_Symbol, typename T_Compare>
+void print_table_csv(const slr::table<T_Symbol, T_Compare>& table, std::ostream& out = std::cout, const char delimiter = ',')
+{
+	using table_type = slr::table<T_Symbol, T_Compare>;
+	using action_type = typename table_type::action_type;
+	using symbol_type = typename table_type::symbol_type;
+	using state_type = typename table_type::state_type;
+
+	std::set<symbol_type> terminals;
+	std::set<symbol_type> non_terminals;
+
+	const auto to_string = [](const action_type& action) -> std::string {
+		using namespace fsm::slr::actions;
+		return utility::overloaded_visitor(
+			action,
+			[](const action_error&) -> std::string { return ""; },
+			[](const action_accept&) -> std::string { return "accept"; },
+			[](const action_reduce<symbol_type>& act) -> std::string { return "r(" + act.rule.lhs + ")"; },
+			[](const action_shift<state_type>& act) -> std::string { return "s(" + std::to_string(act.target_state) + ")"; });
+	};
+
+	for (const auto& [state, map] : table.action_table())
+	{
+		for (const auto& [sym, act] : map)
+		{
+			terminals.insert(sym);
+		}
+	}
+
+	for (const auto& [state, map] : table.goto_table())
+	{
+		for (const auto& [sym, target] : map)
+		{
+			non_terminals.insert(sym);
+		}
+	}
+
+	out << "State";
+	for (const auto& t : terminals)
+	{
+		out << delimiter << t;
+	}
+	for (const auto& nt : non_terminals)
+	{
+		out << delimiter << nt;
+	}
+	out << "\n";
+
+	std::size_t max_state = 0;
+	if (!table.action_table().empty())
+	{
+		max_state = std::max(max_state, table.action_table().rbegin()->first);
+	}
+	if (!table.goto_table().empty())
+	{
+		max_state = std::max(max_state, table.goto_table().rbegin()->first);
+	}
+
+	for (std::size_t i = 0; i <= max_state; ++i)
+	{
+		out << i;
+
+		for (const auto& t : terminals)
+		{
+			out << delimiter << to_string(table.get_action(i, t));
+		}
+
+		for (const auto& nt : non_terminals)
+		{
+			auto res = table.get_goto(i, nt);
+			out << delimiter;
+			if (res)
+			{
+				out << *res;
+			}
 		}
 		out << "\n";
 	}

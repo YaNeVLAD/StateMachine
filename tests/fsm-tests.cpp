@@ -1735,19 +1735,22 @@ TEST_F(SLRCollisionPolicyTest, WarningCallbackIsTriggered)
 
 TEST(SLRPrinter, SuccessfullyPrintsSLRTable)
 {
-	std::ifstream file("res/slr_grammar_test2.txt");
+	constexpr auto INPUT = "res/_check_slr_5.txt";
+	constexpr auto OUTPUT = "res/OUT_check_slr_5.csv";
+
+	std::ifstream file(INPUT);
 	const auto grammar = cfg_load(file);
 
-	const auto builder = slr::table_builder(grammar, "ε", "$");
+	const auto builder = slr::table_builder(grammar, "<epsilon>", "<end_marker>");
 
 	auto table = builder.build();
 	std::cout << std::string(50, '=') << std::endl;
 
-	std::ofstream out("res/OUT_slr_grammar_test2.txt");
-	slr::print_table(table, out);
+	std::ofstream out(OUTPUT);
+	slr::print_table_csv(table, out, ';');
 
-	auto parser = slr::parser(table, "ε");
-	std::vector<std::string> src = { "a", "x", "a", "y", "b" };
+	auto parser = slr::parser(table, "<epsilon>");
+	std::vector<std::string> src = { "a", "a", "b", "b" };
 	parser.begin(src);
 	while (const auto event = parser.next())
 	{
