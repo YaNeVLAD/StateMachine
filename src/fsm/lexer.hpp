@@ -79,6 +79,7 @@ struct token
 	std::size_t line{};
 	std::size_t column{};
 	std::size_t offset{};
+	std::size_t length{};
 };
 
 template <typename T_TokenType, typename T_Matcher = fsm_regex_matcher>
@@ -217,7 +218,8 @@ private:
 				m_source.substr(start_offset, match->length),
 				start_line,
 				start_col,
-				start_offset
+				start_offset,
+				match->length
 			};
 		}
 
@@ -284,7 +286,8 @@ private:
 			m_source.substr(start_offset, 1),
 			start_line,
 			start_col,
-			start_offset
+			start_offset,
+			1
 		};
 	}
 };
