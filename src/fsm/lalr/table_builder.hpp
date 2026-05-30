@@ -62,10 +62,17 @@ public:
 
 		auto first_sets = algorithms::compute_first(this->m_grammar, this->m_epsilon);
 
+		using rules_map_t = std::map<T_Symbol, std::vector<cfg_rule<T_Symbol>>, T_Compare>;
+		rules_map_t rules_by_lhs;
+		for (const auto& r : this->m_grammar.rules())
+		{
+			rules_by_lhs[r.lhs].push_back(r);
+		}
+
 		lr0_item_t start_item{ { this->m_aug_start, { this->m_grammar.start_symbol() } }, 0 };
 		lr1_state_t initial_state;
 		initial_state[start_item].insert(this->m_eof);
-		initial_state = compute_closure(initial_state, first_sets);
+		initial_state = compute_closure(initial_state, first_sets, rules_by_lhs);
 
 		std::vector<lr1_state_t> lr1_states;
 		std::map<lr1_state_t, std::size_t> state_to_id;
@@ -94,9 +101,11 @@ public:
 
 			for (const auto& X : next_symbols)
 			{
-				lr1_state_t next_state = compute_goto(current_state, X, first_sets);
+				lr1_state_t next_state = compute_goto(current_state, X, first_sets, rules_by_lhs);
 				if (next_state.empty())
+				{
 					continue;
+				}
 
 				if (!state_to_id.contains(next_state))
 				{
@@ -188,20 +197,22 @@ public:
 	}
 
 private:
+	using rules_map_t = std::map<T_Symbol, std::vector<cfg_rule<T_Symbol>>, T_Compare>;
+
 	struct closure_result
 	{
 		std::set<lr0_item_t> items;
 		std::map<lr0_item_t, std::set<T_Symbol, T_Compare>> lookaheads;
 	};
 
-	lr1_state_t compute_closure(lr1_state_t I, const first_sets_t& first_sets) const
+	lr1_state_t compute_closure(lr1_state_t I, first_sets_t const& first_sets, rules_map_t const& rules_by_lhs) const
 	{
 		bool changed = true;
 		while (changed)
 		{
 			changed = false;
-
 			lr1_state_t additions;
+
 			for (const auto& [item, lookaheads] : I)
 			{
 				if (item.is_complete() || this->m_grammar.is_terminal(item.next_symbol()))
@@ -210,26 +221,54 @@ private:
 				}
 
 				T_Symbol B = item.next_symbol();
-				std::vector<T_Symbol> beta(item.rule.rhs.begin() + item.dot + 1, item.rule.rhs.end());
 
-				auto first_beta = algorithms::impl::ComputeFirstOf_fn{}(beta, first_sets, this->m_epsilon);
-				const bool beta_has_epsilon = first_beta.erase(this->m_epsilon) > 0;
-
-				for (const auto& rule : this->m_grammar.rules())
+				auto rules_it = rules_by_lhs.find(B);
+				if (rules_it == rules_by_lhs.end())
 				{
-					if (rule.lhs == B)
+					continue;
+				}
+
+				std::set<T_Symbol, T_Compare> first_beta;
+				bool beta_has_epsilon = true;
+
+				for (std::size_t i = item.dot + 1; i < item.rule.rhs.size(); ++i)
+				{
+					const auto& sym = item.rule.rhs[i];
+					if (!first_sets.contains(sym))
 					{
-						std::size_t initial_dot = (rule.rhs.size() == 1 && rule.rhs[0] == this->m_epsilon) ? 1 : 0;
-						lr0_item_t new_core{ rule, initial_dot };
+						first_beta.insert(sym);
+						beta_has_epsilon = false;
+						break;
+					}
 
-						auto& target_la = additions[new_core];
-
-						target_la.insert(first_beta.begin(), first_beta.end());
-
-						if (beta_has_epsilon)
+					const auto& sym_first = first_sets.at(sym);
+					for (const auto& a : sym_first)
+					{
+						if (a != this->m_epsilon)
 						{
-							target_la.insert(lookaheads.begin(), lookaheads.end());
+							first_beta.insert(a);
 						}
+					}
+
+					if (!sym_first.contains(this->m_epsilon))
+					{
+						beta_has_epsilon = false;
+						break;
+					}
+				}
+
+				for (const auto& rule : rules_it->second)
+				{
+					std::size_t initial_dot = (rule.rhs.size() == 1 && rule.rhs[0] == this->m_epsilon) ? 1 : 0;
+					lr0_item_t new_core{ rule, initial_dot };
+
+					auto& target_la = additions[new_core];
+
+					target_la.insert(first_beta.begin(), first_beta.end());
+
+					if (beta_has_epsilon)
+					{
+						target_la.insert(lookaheads.begin(), lookaheads.end());
 					}
 				}
 			}
@@ -251,7 +290,7 @@ private:
 		return I;
 	}
 
-	lr1_state_t compute_goto(const lr1_state_t& I, const T_Symbol& X, const first_sets_t& first_sets) const
+	lr1_state_t compute_goto(lr1_state_t const& I, T_Symbol const& X, first_sets_t const& first_sets, rules_map_t const& rules_by_lhs) const
 	{
 		lr1_state_t J;
 		for (const auto& [item, lookaheads] : I)
@@ -263,7 +302,8 @@ private:
 				J[next_core] = lookaheads;
 			}
 		}
-		return compute_closure(J, first_sets);
+
+		return compute_closure(J, first_sets, rules_by_lhs);
 	}
 
 	std::set<T_Symbol, T_Compare> compute_first_of_sequence_with_la(
