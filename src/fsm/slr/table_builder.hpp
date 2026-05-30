@@ -2,7 +2,8 @@
 #define FSM_SLR_TABLE_BUILDER_HPP
 
 #include "../cfg/cfg_algorithms.hpp"
-#include "table.hpp"
+#include "../lr/lr0_item.hpp"
+#include "../lr/table.hpp"
 
 #include <algorithm>
 #include <functional>
@@ -38,53 +39,17 @@ inline constexpr detail::keep_first_t keep_first{};
 inline constexpr detail::keep_last_t keep_last{};
 } // namespace collision_policy
 
-template <typename T_Symbol>
-struct lr0_item
-{
-	cfg_rule<T_Symbol> rule;
-	std::size_t dot = 0;
-
-	[[nodiscard]] bool is_complete() const
-	{
-		return dot >= rule.rhs.size();
-	}
-
-	T_Symbol next_symbol() const
-	{
-		return rule.rhs[dot];
-	}
-
-	bool operator<(const lr0_item& other) const
-	{
-		if (dot != other.dot)
-		{
-			return dot < other.dot;
-		}
-		if (rule.lhs != other.rule.lhs)
-		{
-			return rule.lhs < other.rule.lhs;
-		}
-
-		return rule.rhs < other.rule.rhs;
-	}
-
-	bool operator==(const lr0_item& other) const
-	{
-		return dot == other.dot && rule.lhs == other.rule.lhs && rule.rhs == other.rule.rhs;
-	}
-};
-
 template <typename T_Symbol, typename T_Compare = std::less<T_Symbol>>
 class table_builder
 {
 	using grammar_t = basic_cfg<T_Symbol, T_Compare>;
-	using item_t = lr0_item<T_Symbol>;
+	using item_t = lr::lr0_item<T_Symbol>;
 	using state_t = std::set<item_t>;
 	using identity_symbol = std::type_identity_t<T_Symbol>;
 
 public:
 	using grammar_type = grammar_t;
-	using table_type = table<T_Symbol, T_Compare>;
+	using table_type = lr::table<T_Symbol, T_Compare>;
 	using warning_callback_type = std::function<void(const std::string&)>;
 
 	explicit table_builder(const grammar_t& grammar)
@@ -129,8 +94,8 @@ public:
 	template <typename T_CollisionPolicy = detail::throw_exception_t>
 	table_type build(T_CollisionPolicy policy = collision_policy::throw_exception) const
 	{
-		using tbl_state_t = typename table_type::state_type;
-		using action_type = typename table_type::action_type;
+		using tbl_state_t = table_type::state_type;
+		using action_type = table_type::action_type;
 
 		table_type result;
 		result.set_end_marker(m_eof);
@@ -187,16 +152,16 @@ public:
 		auto try_add_action = [&](tbl_state_t state_id, const T_Symbol& terminal, const action_type& new_action) {
 			const auto& existing = result.get_action(state_id, terminal);
 
-			if (actions::is_error(existing))
+			if (lr::actions::is_error(existing))
 			{
 				result.add_action(state_id, terminal, new_action);
 
 				return;
 			}
 
-			const bool is_sr = (actions::is_shift(existing) && actions::is_reduce(new_action))
-				|| (actions::is_reduce(existing) && actions::is_shift(new_action));
-			const bool is_rr = actions::is_reduce(existing) && actions::is_reduce(new_action);
+			const bool is_sr = (lr::actions::is_shift(existing) && lr::actions::is_reduce(new_action))
+				|| (lr::actions::is_reduce(existing) && lr::actions::is_shift(new_action));
+			const bool is_rr = lr::actions::is_reduce(existing) && lr::actions::is_reduce(new_action);
 
 			const std::string conflict_type = is_sr ? "Shift/Reduce" : (is_rr ? "Reduce/Reduce" : "Unknown");
 			const std::string msg = "SLR(1) " + conflict_type + " conflict at state " + std::to_string(state_id);
@@ -208,7 +173,7 @@ public:
 				[&](detail::prefer_shift_t) {
 					if (is_sr)
 					{
-						if (actions::is_shift(new_action))
+						if (lr::actions::is_shift(new_action))
 						{
 							result.add_action(state_id, terminal, new_action);
 						}
@@ -239,7 +204,7 @@ public:
 					T_Symbol a = item.next_symbol();
 					if (m_grammar.is_terminal(a) && transitions.contains({ i, a }))
 					{
-						try_add_action(i, a, action_shift<tbl_state_t>{ transitions.at({ i, a }) });
+						try_add_action(i, a, lr::action_shift<tbl_state_t>{ transitions.at({ i, a }) });
 					}
 					else if (m_grammar.is_non_terminal(a) && transitions.contains({ i, a }))
 					{
@@ -248,13 +213,13 @@ public:
 				}
 				else if (item.rule.lhs == m_aug_start)
 				{ // S' -> S . (ACCEPT)
-					try_add_action(i, m_eof, action_accept{});
+					try_add_action(i, m_eof, lr::action_accept{});
 				}
 				else
 				{ // A -> alpha . (REDUCE)
 					for (const auto& a : follow_sets.at(item.rule.lhs))
 					{
-						try_add_action(i, a, action_reduce<T_Symbol>{ item.rule });
+						try_add_action(i, a, lr::action_reduce<T_Symbol>{ item.rule });
 					}
 				}
 			}

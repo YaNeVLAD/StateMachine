@@ -1,40 +1,12 @@
 #ifndef FSM_BASIC_CFG_HPP
 #define FSM_BASIC_CFG_HPP
 
+#include "../detail/cfg_rule.hpp"
+
 #include <set>
-#include <vector>
 
 namespace fsm
 {
-template <typename T_Symbol>
-struct cfg_rule
-{
-	T_Symbol lhs;
-	std::vector<T_Symbol> rhs;
-
-	[[nodiscard]] bool is_epsilon() const
-	{
-		return rhs.empty();
-	}
-
-	template <typename T_OtherSymbol>
-	bool operator<(const cfg_rule<T_OtherSymbol>& other) const
-	{
-		if (lhs != other.lhs)
-		{
-			return lhs < other.lhs;
-		}
-
-		return rhs < other.rhs;
-	}
-
-	template <typename T_OtherSymbol>
-	bool operator==(const cfg_rule<T_OtherSymbol>& other) const
-	{
-		return lhs == other.lhs && rhs == other.rhs;
-	}
-};
-
 template <
 	typename T_Symbol,
 	typename T_Comparator = std::less<T_Symbol>>

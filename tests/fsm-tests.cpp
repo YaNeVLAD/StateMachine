@@ -1290,7 +1290,7 @@ TEST(LL1Table, SaveAndLoadTest)
 TEST(SLR1TableBuilderTest, CorrectnessAndLogic)
 {
 	using namespace fsm::slr;
-	using namespace fsm::slr::actions;
+	using namespace fsm::lr::actions;
 
 	basic_cfg<std::string> g(
 		{ "S", "B" },
@@ -1306,7 +1306,6 @@ TEST(SLR1TableBuilderTest, CorrectnessAndLogic)
 
 	auto table = builder.build();
 
-	// 0 - это всегда стартовое состояние, замыкание от S' -> . S
 	using table_state_type = decltype(table)::state_type;
 
 	table_state_type state_0 = 0;
@@ -1345,7 +1344,7 @@ TEST(SLR1TableBuilderTest, CorrectnessAndLogic)
 TEST(SLR1TableBuilderTest, CustomSymbolType)
 {
 	using namespace fsm::slr;
-	using namespace fsm::slr::actions;
+	using namespace fsm::lr::actions;
 
 	struct Token
 	{
@@ -1397,6 +1396,7 @@ protected:
 // S -> a
 TEST_F(SLRParserTest, SuccessfulParseSequence)
 {
+	using namespace fsm::lr;
 	using namespace fsm::slr;
 
 	basic_cfg<std::string> g(
@@ -1435,6 +1435,7 @@ TEST_F(SLRParserTest, SuccessfulParseSequence)
 // B -> ε
 TEST_F(SLRParserTest, EpsilonReductionLogic)
 {
+	using namespace fsm::lr;
 	using namespace fsm::slr;
 
 	basic_cfg<std::string> g(
@@ -1471,16 +1472,16 @@ TEST_F(SLRParserTest, EpsilonReductionLogic)
 	ASSERT_TRUE(events::is_accept(*e4));
 }
 
-slr::table<char> create_mock_table()
+lr::table<char> create_mock_table()
 {
-	slr::table<char> tbl;
+	lr::table<char> tbl;
 	tbl.set_end_marker('$');
 
 	const cfg_rule rule{ 'S', { 'a' } };
-	tbl.add_action(0, 'a', slr::action_shift<std::size_t>{ 1 });
-	tbl.add_action(1, '$', slr::action_reduce{ rule });
+	tbl.add_action(0, 'a', lr::action_shift<std::size_t>{ 1 });
+	tbl.add_action(1, '$', lr::action_reduce{ rule });
 	tbl.add_goto(0, 'S', 2);
-	tbl.add_action(2, '$', slr::action_accept{});
+	tbl.add_action(2, '$', lr::action_accept{});
 
 	return tbl;
 }
@@ -1488,7 +1489,7 @@ slr::table<char> create_mock_table()
 TEST(SlrParserTest, RangeBasedForYieldsCorrectEvents)
 {
 	const auto tbl = create_mock_table();
-	slr::parser p(tbl, 'e');
+	lr::parser p(tbl, 'e');
 
 	std::vector input = { 'a' };
 	std::vector<std::size_t> event_indices;
@@ -1507,7 +1508,7 @@ TEST(SlrParserTest, RangeBasedForYieldsCorrectEvents)
 TEST(SlrParserTest, WhileLoopHandlesErrorsCorrectly)
 {
 	const auto tbl = create_mock_table();
-	slr::parser p(tbl, 'e');
+	lr::parser p(tbl, 'e');
 
 	std::vector bad_input = { 'b' };
 	p.parse(bad_input);
@@ -1518,9 +1519,9 @@ TEST(SlrParserTest, WhileLoopHandlesErrorsCorrectly)
 	{
 		event_indices.push_back(opt_event->index());
 
-		if (slr::events::is_error(*opt_event))
+		if (lr::events::is_error(*opt_event))
 		{
-			auto [unexpected_token, expected_tokens] = slr::events::as_error(*opt_event);
+			auto [unexpected_token, expected_tokens] = lr::events::as_error(*opt_event);
 			EXPECT_EQ(unexpected_token, 'b');
 		}
 	}
@@ -1536,6 +1537,7 @@ TEST(SlrParserTest, WhileLoopHandlesErrorsCorrectly)
 // S -> a
 TEST_F(SLRParserTest, SyntaxErrorHandling)
 {
+	using namespace fsm::lr;
 	using namespace fsm::slr;
 
 	basic_cfg<std::string> g(
@@ -1620,7 +1622,7 @@ TEST_F(SLRCollisionPolicyTest, ThrowExceptionByDefault)
 TEST_F(SLRCollisionPolicyTest, PreferShiftResolvesSR)
 {
 	using namespace fsm::slr;
-	using namespace fsm::slr::actions;
+	using namespace fsm::lr::actions;
 
 	auto g = get_sr_conflict_grammar();
 	auto builder = table_builder(g).with_epsilon("ε").with_end_marker("$");
@@ -1643,7 +1645,7 @@ TEST_F(SLRCollisionPolicyTest, PreferShiftResolvesSR)
 TEST_F(SLRCollisionPolicyTest, KeepFirstResolvesSR)
 {
 	using namespace fsm::slr;
-	using namespace fsm::slr::actions;
+	using namespace fsm::lr::actions;
 
 	auto g = get_sr_conflict_grammar();
 	auto builder = table_builder(g).with_epsilon("ε").with_end_marker("$");
@@ -1663,7 +1665,7 @@ TEST_F(SLRCollisionPolicyTest, KeepFirstResolvesSR)
 TEST_F(SLRCollisionPolicyTest, KeepLastResolvesSR)
 {
 	using namespace fsm::slr;
-	using namespace fsm::slr::actions;
+	using namespace fsm::lr::actions;
 
 	auto g = get_sr_conflict_grammar();
 	auto builder = table_builder(g).with_epsilon("ε").with_end_marker("$");
@@ -1679,7 +1681,7 @@ TEST_F(SLRCollisionPolicyTest, KeepLastResolvesSR)
 TEST_F(SLRCollisionPolicyTest, PreferShiftResolvesRRAsKeepFirst)
 {
 	using namespace fsm::slr;
-	using namespace fsm::slr::actions;
+	using namespace fsm::lr::actions;
 
 	auto g = get_rr_conflict_grammar();
 	auto builder = table_builder(g).with_epsilon("ε").with_end_marker("$");
@@ -1700,7 +1702,7 @@ TEST_F(SLRCollisionPolicyTest, PreferShiftResolvesRRAsKeepFirst)
 TEST_F(SLRCollisionPolicyTest, KeepLastResolvesRR)
 {
 	using namespace fsm::slr;
-	using namespace fsm::slr::actions;
+	using namespace fsm::lr::actions;
 
 	auto g = get_rr_conflict_grammar();
 	auto builder = table_builder(g).with_epsilon("ε").with_end_marker("$");
@@ -1749,7 +1751,7 @@ TEST(SLRPrinter, SuccessfullyPrintsSLRTable)
 	std::ofstream out(OUTPUT);
 	slr::print_table_csv(table, out, ';');
 
-	auto parser = slr::parser(table, "<epsilon>");
+	auto parser = lr::parser(table, "<epsilon>");
 	std::vector<std::string> src = { "a", "a", "b", "b" };
 	parser.begin(src);
 	while (const auto event = parser.next())
@@ -1761,9 +1763,9 @@ TEST(SLRPrinter, SuccessfullyPrintsSLRTable)
 
 		utility::overloaded_visitor(
 			*event,
-			[](const slr::event_accept&) { std::cout << "accept" << std::endl; },
-			[](const slr::event_error<std::string>& e) { std::cout << "error: expected " << e.unexpected_token; },
-			[](const slr::event_shift<std::string>& e) { std::cout << "shift: " << e.token << std::endl; },
-			[](const slr::event_reduce<std::string>& e) { std::cout << "reduce: " << e.rule.lhs << std::endl; });
+			[](const lr::event_accept&) { std::cout << "accept" << std::endl; },
+			[](const lr::event_error<std::string>& e) { std::cout << "error: expected " << e.unexpected_token; },
+			[](const lr::event_shift<std::string>& e) { std::cout << "shift: " << e.token << std::endl; },
+			[](const lr::event_reduce<std::string>& e) { std::cout << "reduce: " << e.rule.lhs << std::endl; });
 	}
 }

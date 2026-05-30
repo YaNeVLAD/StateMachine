@@ -1,7 +1,7 @@
 #ifndef FSM_SLR_TABLE_PRINTER_HPP
 #define FSM_SLR_TABLE_PRINTER_HPP
 
-#include "table.hpp"
+#include "../lr/table.hpp"
 
 #include <iomanip>
 #include <iostream>
@@ -10,24 +10,24 @@
 namespace fsm::slr
 {
 template <typename T_Symbol, typename T_Compare>
-void print_table(const slr::table<T_Symbol, T_Compare>& table, std::ostream& out = std::cout)
+void print_table(const lr::table<T_Symbol, T_Compare>& table, std::ostream& out = std::cout)
 {
-	using table_type = slr::table<T_Symbol, T_Compare>;
-	using action_type = typename table_type::action_type;
-	using symbol_type = typename table_type::symbol_type;
-	using state_type = typename table_type::state_type;
+	using table_type = lr::table<T_Symbol, T_Compare>;
+	using action_type = table_type::action_type;
+	using symbol_type = table_type::symbol_type;
+	using state_type = table_type::state_type;
 
 	std::set<symbol_type> terminals;
 	std::set<symbol_type> non_terminals;
 
 	const auto to_string = [](const action_type& action) -> std::string {
-		using namespace fsm::slr::actions;
+		using namespace fsm::lr::actions;
 		return utility::overloaded_visitor(
 			action,
-			[](const action_error&) -> std::string { return ""; },
-			[](const action_accept&) -> std::string { return "accept"; },
-			[](const action_reduce<symbol_type>& act) -> std::string { return "r(" + act.rule.lhs + ")"; },
-			[](const action_shift<state_type>& act) -> std::string { return "s(" + std::to_string(act.target_state) + ")"; });
+			[](const lr::action_error&) -> std::string { return ""; },
+			[](const lr::action_accept&) -> std::string { return "accept"; },
+			[](const lr::action_reduce<symbol_type>& act) -> std::string { return "r(" + act.rule.lhs + ")"; },
+			[](const lr::action_shift<state_type>& act) -> std::string { return "s(" + std::to_string(act.target_state) + ")"; });
 	};
 
 	for (const auto& [state, map] : table.action_table())
@@ -94,24 +94,24 @@ void print_table(const slr::table<T_Symbol, T_Compare>& table, std::ostream& out
 }
 
 template <typename T_Symbol, typename T_Compare>
-void print_table_csv(const slr::table<T_Symbol, T_Compare>& table, std::ostream& out = std::cout, const char delimiter = ',')
+void print_table_csv(const lr::table<T_Symbol, T_Compare>& table, std::ostream& out = std::cout, const char delimiter = ',')
 {
-	using table_type = slr::table<T_Symbol, T_Compare>;
-	using action_type = typename table_type::action_type;
-	using symbol_type = typename table_type::symbol_type;
-	using state_type = typename table_type::state_type;
+	using table_type = lr::table<T_Symbol, T_Compare>;
+	using action_type = table_type::action_type;
+	using symbol_type = table_type::symbol_type;
+	using state_type = table_type::state_type;
 
 	std::set<symbol_type> terminals;
 	std::set<symbol_type> non_terminals;
 
 	const auto to_string = [](const action_type& action) -> std::string {
-		using namespace fsm::slr::actions;
+		using namespace fsm::lr::actions;
 		return utility::overloaded_visitor(
 			action,
-			[](const action_error&) -> std::string { return ""; },
-			[](const action_accept&) -> std::string { return "accept"; },
-			[](const action_reduce<symbol_type>& act) -> std::string { return "r(" + act.rule.lhs + ")"; },
-			[](const action_shift<state_type>& act) -> std::string { return "s(" + std::to_string(act.target_state) + ")"; });
+			[](const lr::action_error&) -> std::string { return ""; },
+			[](const lr::action_accept&) -> std::string { return "accept"; },
+			[](const lr::action_reduce<symbol_type>& act) -> std::string { return "r(" + act.rule.lhs + ")"; },
+			[](const lr::action_shift<state_type>& act) -> std::string { return "s(" + std::to_string(act.target_state) + ")"; });
 	};
 
 	for (const auto& [state, map] : table.action_table())

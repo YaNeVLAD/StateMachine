@@ -6,7 +6,7 @@
 #include <map>
 #include <variant>
 
-namespace fsm::slr
+namespace fsm::lr
 {
 struct action_error
 {
@@ -170,6 +170,6 @@ private:
 		return std::nullopt;
 	}
 };
-} // namespace fsm::slr
+} // namespace fsm::lr
 
 #endif // FSM_SLR_TABLE_HPP

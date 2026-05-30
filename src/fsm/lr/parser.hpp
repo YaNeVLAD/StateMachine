@@ -7,7 +7,7 @@
 #include <span>
 #include <variant>
 
-namespace fsm::slr
+namespace fsm::lr
 {
 
 template <typename T_Symbol>
@@ -148,7 +148,7 @@ class parser
 
 public:
 	using table_type = table<T_Symbol, T_Compare>;
-	using state_type = typename table_type::state_type;
+	using state_type = table_type::state_type;
 	using event_type = event_t;
 	using optional_event_type = opt_event_t;
 
@@ -215,7 +215,7 @@ public:
 				return event_shift<T_Symbol>{ current_token };
 			},
 			[&](const action_reduce<T_Symbol>& arg) -> std::optional<event_type> {
-				using opt_state = typename table_type::optional_state;
+				using opt_state = table_type::optional_state;
 
 				const auto& rule = arg.rule;
 				std::size_t pop_count = rule.rhs.size();
@@ -278,6 +278,6 @@ private:
 	bool m_is_finished = true;
 };
 
-} // namespace fsm::slr
+} // namespace fsm::lr
 
 #endif // FSM_SLR_PARSER_HPP
