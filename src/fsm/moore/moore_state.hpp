@@ -6,16 +6,6 @@
 #include <string>
 #include <utility>
 
-/**
- * @brief A plain data structure that holds the entire state of a `moore_machine`.
- *
- * This struct defines a Moore machine's components. Unlike a Mealy machine,
- * the output is associated directly with a state and is stored in the `outputs`
- * map. The `transitions` map defines the transition function
- * `(State, Input) -> Next State`.
- *
- * @see fsm::moore_machine
- */
 template <typename T_StateID, typename T_Input, typename T_Output>
 struct basic_moore_state
 {
@@ -41,6 +31,16 @@ struct basic_moore_state
 	state_id current_state_id;
 };
 
+/**
+ * @brief A plain data structure that holds the entire state of a `moore_machine`.
+ *
+ * This struct defines a Moore machine's components. Unlike a Mealy machine,
+ * the output is associated directly with a state and is stored in the `outputs`
+ * map. The `transitions` map defines the transition function
+ * `(State, Input) -> Next State`.
+ *
+ * @see fsm::moore_machine
+ */
 using moore_state = basic_moore_state<std::string, std::string, std::string>;
 
 #endif // MOORE_STATE_HPP
