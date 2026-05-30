@@ -41,6 +41,16 @@ concept container = requires(T container) {
 };
 
 template <typename T>
+concept contiguous_container = container<T> && requires(T a) {
+	{ a.data() };
+	{ a.size() } -> std::convertible_to<std::size_t>;
+	a.resize(std::size_t{ 0 });
+
+	requires std::same_as<std::contiguous_iterator_tag, typename T::iterator::iterator_category>;
+	requires std::is_trivially_copyable_v<std::remove_reference_t<decltype(*a.data())>>;
+};
+
+template <typename T>
 concept has_value_type = requires { typename T::value_type; };
 
 template <typename T>

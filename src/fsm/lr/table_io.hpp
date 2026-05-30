@@ -2,29 +2,19 @@
 #define FSM_LR_TABLE_IO_HPP
 
 #include "../utility.hpp"
+#include "../concepts.hpp"
 #include "table.hpp"
 
 #include <iostream>
-#include <string>
 
 namespace fsm::lr::io
 {
 namespace detail
 {
 template <typename T>
-concept TriviallyCopyable = std::is_trivially_copyable_v<T>;
-
-template <typename T>
-concept ContiguousContainer = requires(T a) {
-	{ a.data() };
-
-	requires TriviallyCopyable<std::remove_reference_t<decltype(*a.data())>>;
-};
-
-template <typename T>
 void write_bin(std::ostream& os, const T& val)
 {
-	if constexpr (ContiguousContainer<T>)
+	if constexpr (concepts::contiguous_container<T>)
 	{
 		const size_t sz = val.size();
 		os.write(reinterpret_cast<const char*>(&sz), sizeof(sz));
@@ -34,7 +24,7 @@ void write_bin(std::ostream& os, const T& val)
 			os.write(reinterpret_cast<const char*>(val.data()), sz * sizeof(*val.data()));
 		}
 	}
-	else if constexpr (TriviallyCopyable<T>)
+	else if constexpr (std::is_trivially_copyable_v<T>)
 	{
 		os.write(reinterpret_cast<const char*>(&val), sizeof(val));
 	}
@@ -47,7 +37,7 @@ void write_bin(std::ostream& os, const T& val)
 template <typename T>
 void read_bin(std::istream& is, T& val)
 {
-	if constexpr (ContiguousContainer<T>)
+	if constexpr (concepts::contiguous_container<T>)
 	{
 		size_t sz = 0;
 		is.read(reinterpret_cast<char*>(&sz), sizeof(sz));
@@ -58,7 +48,7 @@ void read_bin(std::istream& is, T& val)
 			is.read(reinterpret_cast<char*>(val.data()), sz * sizeof(*val.data()));
 		}
 	}
-	else if constexpr (TriviallyCopyable<T>)
+	else if constexpr (std::is_trivially_copyable_v<T>)
 	{
 		is.read(reinterpret_cast<char*>(&val), sizeof(val));
 	}
