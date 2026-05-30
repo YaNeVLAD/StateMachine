@@ -4,6 +4,7 @@
 
 #include <fsm/cfg.hpp>
 #include <fsm/integer_symbol_generator.hpp>
+#include <fsm/lalr.hpp>
 #include <fsm/ll1.hpp>
 #include <fsm/recognizer.hpp>
 #include <fsm/slr.hpp>
