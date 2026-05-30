@@ -16,22 +16,28 @@
  *
  * @see fsm::mealy_machine
  */
-struct mealy_state
+template <typename T_StateID, typename T_Input, typename T_Output>
+struct basic_mealy_state
 {
-	using state_id = std::string;
-	using input = std::string;
-	using output = std::string;
+	using state_id = T_StateID;
+	using input = T_Input;
+	using output = T_Output;
 
 	using transitions_t = std::map<std::pair<state_id, input>, std::pair<state_id, output>>;
 
 	/// @brief The set of all unique state identifiers in the machine.
 	std::set<state_id> state_ids;
+
 	/// @brief The identifier of the machine's starting state.
 	state_id initial_state_id;
+
 	/// @brief The identifier of the machine's current state.
 	state_id current_state_id;
+
 	/// @brief The transition table for the machine.
 	transitions_t transitions;
 };
+
+using mealy_state = basic_mealy_state<std::string, std::string, std::string>;
 
 #endif // MEALY_STATE_HPP
