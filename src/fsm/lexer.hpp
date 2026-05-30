@@ -5,6 +5,7 @@
 #include "recognizer.hpp"
 #include "regex.hpp"
 
+#include <expected>
 #include <string_view>
 
 namespace fsm
@@ -82,6 +83,20 @@ struct token
 	std::size_t length{};
 };
 
+struct lexer_error
+{
+	std::size_t line{};
+	std::size_t column{};
+	std::size_t offset{};
+
+	char unexpected_char{};
+
+	[[nodiscard]] std::string to_string() const
+	{
+		return std::format("Unexpected character '{}' at line {}, column {}", unexpected_char, line, column);
+	}
+};
+
 template <typename T_TokenType, typename T_Matcher = fsm_regex_matcher>
 class lexer
 {
@@ -89,8 +104,12 @@ class lexer
 	using optional_token = std::optional<token_t>;
 	using error_type = std::optional<T_TokenType>;
 
+	template <typename T>
+	using expected_value = std::expected<T, lexer_error>;
+
 public:
 	using token_type = token_t;
+	using result_type = std::optional<expected_value<token_type>>;
 
 	struct rule
 	{
@@ -100,15 +119,14 @@ public:
 		bool skip{};
 	};
 
-	explicit lexer(std::string_view source, error_type error_token = std::nullopt)
-		: lexer(source, {}, error_token)
+	explicit lexer(std::string_view source)
+		: lexer(source, {})
 	{
 	}
 
-	lexer(const std::string_view source, std::vector<rule> rules, error_type error_token = std::nullopt)
+	lexer(const std::string_view source, std::vector<rule> rules)
 		: m_source{ source }
 		, m_rules{ std::move(rules) }
-		, m_error_type{ error_token }
 	{
 	}
 
@@ -144,7 +162,7 @@ public:
 		return *this;
 	}
 
-	std::optional<token_type> peek()
+	result_type peek()
 	{
 		if (!m_peek_buffer)
 		{
@@ -154,21 +172,28 @@ public:
 		return m_peek_buffer;
 	}
 
-	std::optional<token_type> next()
+	result_type next()
 	{
 		auto token = peek();
 
-		m_peek_buffer.reset();
+		if (token)
+		{
+			m_peek_buffer.reset();
+		}
 
 		return token;
 	}
 
-	std::vector<token_type> tokenize()
+	expected_value<std::vector<token_type>> tokenize()
 	{
 		std::vector<token_type> tokens;
-		while (auto token = next())
+		while (auto res = next())
 		{
-			tokens.emplace_back(*token);
+			if (!*res)
+			{
+				return std::unexpected(res->error());
+			}
+			tokens.emplace_back(**res);
 		}
 
 		return tokens;
@@ -188,10 +213,9 @@ private:
 	std::size_t m_line = 1;
 	std::size_t m_column = 1;
 
-	optional_token m_peek_buffer{};
-	error_type m_error_type{};
+	result_type m_peek_buffer{};
 
-	std::optional<token_type> read_next_token()
+	result_type read_next_token()
 	{
 		while (m_cursor < m_source.length())
 		{
@@ -199,7 +223,7 @@ private:
 
 			if (!match)
 			{
-				return throw_or_error_and_advance();
+				return make_error_and_advance();
 			}
 
 			std::size_t start_line = m_line;
@@ -233,8 +257,7 @@ private:
 
 		for (const auto& rule : m_rules)
 		{
-			const std::size_t current_len = rule.matcher.find_match(m_source, m_cursor);
-			if (current_len > max_len)
+			if (const std::size_t current_len = rule.matcher.find_match(m_source, m_cursor); current_len > max_len)
 			{
 				max_len = current_len;
 				best_rule = &rule;
@@ -266,29 +289,18 @@ private:
 		}
 	}
 
-	token_type throw_or_error_and_advance()
+	result_type make_error_and_advance()
 	{
-		if (!m_error_type)
-		{
-			throw std::runtime_error(std::format(
-				"Unexpected character '{}' at line {}, column {}",
-				m_source[m_cursor], m_line, m_column));
-		}
-
-		std::size_t start_line = m_line;
-		std::size_t start_col = m_column;
-		std::size_t start_offset = m_cursor;
+		const auto err = std::unexpected(lexer_error{
+			m_line,
+			m_column,
+			m_cursor,
+			m_source[m_cursor],
+		});
 
 		advance_cursor(1);
 
-		return token_type{
-			*m_error_type,
-			m_source.substr(start_offset, 1),
-			start_line,
-			start_col,
-			start_offset,
-			1
-		};
+		return err;
 	}
 };
 
