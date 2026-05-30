@@ -1770,3 +1770,183 @@ TEST(SLRPrinter, SuccessfullyPrintsSLRTable)
 			[](const lr::event_reduce<std::string>& e) { std::cout << "reduce: " << e.rule.lhs << std::endl; });
 	}
 }
+
+class LALRTableBuilderTest : public testing::Test
+{
+protected:
+	// ------------------------------------------------------------------------
+	// Pointer grammar
+	// LALR(1) but not SLR(1).
+	// S -> L = R | R
+	// L -> * R | id
+	// R -> L
+	// ------------------------------------------------------------------------
+	static basic_cfg<std::string> get_pointer_grammar()
+	{
+		return basic_cfg<std::string>(
+			{ "S'", "S", "L", "R" }, { "=", "*", "id" },
+			{ { "S'", { "S" } },
+				{ "S", { "L", "=", "R" } },
+				{ "S", { "R" } },
+				{ "L", { "*", "R" } },
+				{ "L", { "id" } },
+				{ "R", { "L" } } },
+			"S'");
+	}
+
+	// ------------------------------------------------------------------------
+	// Dangling Else. Neither SLR(1) nor LALR(1).
+	// ------------------------------------------------------------------------
+	static basic_cfg<std::string> get_dangling_else_grammar()
+	{
+		return basic_cfg<std::string>(
+			{ "S'", "S" }, { "i", "e", "a" },
+			{ { "S'", { "S" } },
+				{ "S", { "i", "S" } },
+				{ "S", { "i", "S", "e", "S" } },
+				{ "S", { "a" } } },
+			"S'");
+	}
+};
+
+TEST_F(LALRTableBuilderTest, SlrFailsOnPointerGrammar)
+{
+	const auto g = get_pointer_grammar();
+	const auto builder = slr::table_builder(g)
+							 .with_epsilon("ε")
+							 .with_end_marker("$")
+							 .with_augmented_start("S'");
+
+	EXPECT_THROW(builder.build(), std::runtime_error);
+}
+
+TEST_F(LALRTableBuilderTest, LalrSucceedsOnPointerGrammar)
+{
+	const auto g = get_pointer_grammar();
+	auto builder = lalr::table_builder(g)
+					   .with_epsilon("ε")
+					   .with_end_marker("$")
+					   .with_augmented_start("S'");
+
+	auto expected_table = builder.build();
+	ASSERT_TRUE(expected_table.has_value()) << "LALR(1) shouldn't have conflicts for pointer grammar";
+
+	auto table = std::move(expected_table.value());
+
+	lr::parser p(table, "ε");
+	std::vector<std::string> input = { "*", "id", "=", "id" };
+
+	p.parse(input);
+	while (auto event = p.next())
+	{
+		EXPECT_FALSE(lr::events::is_error(*event));
+	}
+
+	EXPECT_TRUE(p.is_finished());
+}
+
+TEST_F(LALRTableBuilderTest, LalrFailsOnDanglingElseStrict)
+{
+	const auto g = get_dangling_else_grammar();
+	const auto builder = lalr::table_builder(g)
+							 .with_epsilon("ε")
+							 .with_end_marker("$")
+							 .with_augmented_start("S'");
+
+	auto expected_table = builder.build();
+
+	ASSERT_FALSE(expected_table.has_value()) << "Dangling else must produce a conflict";
+
+	const auto& errors = expected_table.error();
+	ASSERT_FALSE(errors.empty());
+	EXPECT_TRUE(errors.front().is_shift_reduce);
+	EXPECT_EQ(errors.front().terminal, "e");
+}
+
+TEST_F(LALRTableBuilderTest, LalrResolvesDanglingElseWithPolicy)
+{
+	const auto g = get_dangling_else_grammar();
+	const auto builder = lalr::table_builder(g)
+							 .with_epsilon("ε")
+							 .with_end_marker("$")
+							 .with_augmented_start("S'");
+
+	const auto expected_table = builder.build(lr::collision_policy::prefer_shift);
+
+	ASSERT_TRUE(expected_table.has_value()) << "Policy should resolve the conflict successfully";
+}
+
+// ------------------------------------------------------------------------
+// LR(1) but not LALR(1).
+// S -> a E a | b E b | a F b | b F a
+// E -> e
+// F -> e
+// ------------------------------------------------------------------------
+TEST_F(LALRTableBuilderTest, LalrFailsOnLR1OnlyGrammar)
+{
+	basic_cfg<std::string> g(
+		{ "S'", "S", "E", "F" }, { "a", "b", "e" },
+		{ { "S'", { "S" } },
+			{ "S", { "a", "E", "a" } },
+			{ "S", { "b", "E", "b" } },
+			{ "S", { "a", "F", "b" } },
+			{ "S", { "b", "F", "a" } },
+			{ "E", { "e" } },
+			{ "F", { "e" } } },
+		"S'");
+
+	const auto builder = lalr::table_builder(g)
+							 .with_epsilon("ε")
+							 .with_end_marker("$")
+							 .with_augmented_start("S'");
+
+	auto expected_table = builder.build();
+
+	ASSERT_FALSE(expected_table.has_value()) << "Grammar is LR(1) only, LALR merging must fail";
+
+	const auto& errors = expected_table.error();
+	ASSERT_FALSE(errors.empty());
+	EXPECT_FALSE(errors.front().is_shift_reduce) << "Conflict must be Reduce/Reduce";
+	EXPECT_EQ(errors.front().terminal, "a");
+}
+
+// E -> E + T | T
+// T -> T * F | F
+// F -> ( E ) | id
+TEST_F(LALRTableBuilderTest, MathematicalExpressionAcceptance)
+{
+	basic_cfg<std::string> g(
+		{ "E'", "E", "T", "F" }, { "+", "*", "(", ")", "id" },
+		{ { "E'", { "E" } },
+			{ "E", { "E", "+", "T" } },
+			{ "E", { "T" } },
+			{ "T", { "T", "*", "F" } },
+			{ "T", { "F" } },
+			{ "F", { "(", "E", ")" } },
+			{ "F", { "id" } } },
+		"E'");
+
+	auto table = lalr::table_builder(g)
+					 .with_epsilon("ε")
+					 .with_end_marker("$")
+					 .with_augmented_start("E'")
+					 .build()
+					 .value();
+
+	lr::parser p(table, "ε");
+
+	// id + id * ( id )
+	std::vector<std::string> input = { "id", "+", "id", "*", "(", "id", ")" };
+
+	bool is_accepted = false;
+	for (const auto& event : p.parse(input))
+	{
+		if (lr::events::is_accept(event))
+		{
+			is_accepted = true;
+		}
+		EXPECT_FALSE(lr::events::is_error(event));
+	}
+
+	EXPECT_TRUE(is_accepted);
+}

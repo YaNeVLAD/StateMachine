@@ -15,9 +15,9 @@ namespace fsm::lr
 template <typename T_Symbol>
 struct conflict_error
 {
-	std::size_t state_id;
+	std::size_t state_id{};
 	T_Symbol terminal;
-	bool is_shift_reduce;
+	bool is_shift_reduce{};
 	std::string description;
 
 	[[nodiscard]] std::string to_string() const
@@ -53,17 +53,16 @@ inline constexpr detail::keep_first_t keep_first{};
 inline constexpr detail::keep_last_t keep_last{};
 } // namespace collision_policy
 
-template <typename T_Symbol, typename T_Compare = std::less<T_Symbol>>
+template <typename T_Derived, typename T_Symbol, typename T_Compare = std::less<T_Symbol>>
 class basic_table_builder
 {
 	using table_t = table<T_Symbol, T_Compare>;
 
-protected:
+public:
 	using grammar_t = basic_cfg<T_Symbol, T_Compare>;
 	using item_t = lr0_item<T_Symbol>;
 	using state_t = std::set<item_t>;
 	using identity_symbol = std::type_identity_t<T_Symbol>;
-
 	using action_type = table_t::action_type;
 	using state_id_t = table_t::state_type;
 
@@ -74,7 +73,16 @@ public:
 
 	basic_table_builder() = delete;
 
-	basic_table_builder(grammar_t const& grammar, T_Symbol epsilon, T_Symbol end_marker, T_Symbol aug_start)
+	explicit basic_table_builder(grammar_t const& grammar)
+		: m_grammar(grammar)
+	{
+	}
+
+	basic_table_builder(
+		grammar_type const& grammar,
+		identity_symbol epsilon,
+		identity_symbol end_marker,
+		identity_symbol aug_start)
 		: m_grammar(grammar)
 		, m_epsilon(std::move(epsilon))
 		, m_eof(std::move(end_marker))
@@ -86,28 +94,28 @@ public:
 	{
 		m_epsilon = std::move(epsilon);
 
-		return *this;
+		return derived_this();
 	}
 
 	auto& with_end_marker(T_Symbol end_marker)
 	{
 		m_eof = std::move(end_marker);
 
-		return *this;
+		return derived_this();
 	}
 
 	auto& with_augmented_start(T_Symbol aug_start)
 	{
 		m_aug_start = std::move(aug_start);
 
-		return *this;
+		return derived_this();
 	}
 
 	auto& on_warning(warning_callback_type callback)
 	{
 		m_warning_callback = std::move(callback);
 
-		return *this;
+		return derived_this();
 	}
 
 protected:
@@ -139,6 +147,25 @@ protected:
 		if (actions::is_error(existing))
 		{
 			out_table.add_action(state_id, terminal, new_action);
+			return;
+		}
+
+		auto is_same_action = [](action_type const& a, action_type const& b) {
+			if (a.index() != b.index())
+			{
+				return false;
+			}
+
+			return utility::overloaded_visitor(
+				a,
+				[&](const action_error&) { return true; },
+				[&](const action_accept&) { return true; },
+				[&](const action_shift<state_id_t>& s1) { return s1.target_state == actions::as_shift(b).target_state; },
+				[&](const action_reduce<T_Symbol>& r1) { return r1.rule == actions::as_reduce(b).rule; });
+		};
+
+		if (is_same_action(existing, new_action))
+		{
 			return;
 		}
 
@@ -175,6 +202,12 @@ protected:
 				out_table.add_action(state_id, terminal, new_action);
 			}
 		}(policy);
+	}
+
+private:
+	T_Derived& derived_this()
+	{
+		return static_cast<T_Derived&>(*this);
 	}
 };
 

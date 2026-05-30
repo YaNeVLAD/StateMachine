@@ -25,9 +25,9 @@ struct propagation_edge
 } // namespace detail
 
 template <typename T_Symbol, typename T_Compare = std::less<T_Symbol>>
-class table_builder : public lr::basic_table_builder<T_Symbol, T_Compare>
+class table_builder : public lr::basic_table_builder<table_builder<T_Symbol, T_Compare>, T_Symbol, T_Compare>
 {
-	using base_t = lr::basic_table_builder<T_Symbol, T_Compare>;
+	using base_t = lr::basic_table_builder<table_builder, T_Symbol, T_Compare>;
 
 	using lr0_item_t = lr::lr0_item<T_Symbol>;
 
@@ -35,7 +35,19 @@ class table_builder : public lr::basic_table_builder<T_Symbol, T_Compare>
 	using first_sets_t = std::map<T_Symbol, std::set<T_Symbol, T_Compare>, T_Compare>;
 
 public:
-	using base_t::base_table_builder;
+	explicit table_builder(const basic_cfg<T_Symbol, T_Compare>& grammar)
+		: base_t(grammar)
+	{
+	}
+
+	table_builder(
+		base_t::grammar_type const& grammar,
+		base_t::identity_symbol epsilon,
+		base_t::identity_symbol end_marker,
+		base_t::identity_symbol aug_start)
+		: base_t(grammar, std::move(epsilon), std::move(end_marker), std::move(aug_start))
+	{
+	}
 
 	template <typename T_CollisionPolicy = lr::detail::strict_t>
 	std::expected<typename base_t::table_type, std::vector<lr::conflict_error<T_Symbol>>>
@@ -176,11 +188,6 @@ public:
 	}
 
 private:
-	base_t::grammar_t m_grammar;
-	T_Symbol m_epsilon;
-	T_Symbol m_eof;
-	T_Symbol m_aug_start;
-
 	struct closure_result
 	{
 		std::set<lr0_item_t> items;
@@ -260,6 +267,9 @@ private:
 		return res;
 	}
 };
+
+template <typename T_Symbol, typename T_Compare>
+table_builder(basic_cfg<T_Symbol, T_Compare> const&) -> table_builder<T_Symbol, T_Compare>;
 
 } // namespace fsm::lalr
 
