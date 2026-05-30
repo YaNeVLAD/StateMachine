@@ -1,8 +1,8 @@
 #ifndef FSM_LR_TABLE_IO_HPP
 #define FSM_LR_TABLE_IO_HPP
 
-#include "../utility.hpp"
 #include "../concepts.hpp"
+#include "../utility.hpp"
 #include "table.hpp"
 
 #include <iostream>
@@ -45,7 +45,10 @@ void read_bin(std::istream& is, T& val)
 
 		if (sz > 0)
 		{
-			is.read(reinterpret_cast<char*>(val.data()), sz * sizeof(*val.data()));
+			const auto const_byte_ptr = reinterpret_cast<const char*>(val.data());
+			const auto mutable_byte_ptr = const_cast<char*>(const_byte_ptr);
+
+			is.read(mutable_byte_ptr, sz * sizeof(*val.data()));
 		}
 	}
 	else if constexpr (std::is_trivially_copyable_v<T>)
