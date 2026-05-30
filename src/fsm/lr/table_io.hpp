@@ -12,33 +12,59 @@ namespace fsm::lr::io
 namespace detail
 {
 template <typename T>
+concept TriviallyCopyable = std::is_trivially_copyable_v<T>;
+
+template <typename T>
+concept ContiguousContainer = requires(T a) {
+	{ a.data() };
+
+	requires TriviallyCopyable<std::remove_reference_t<decltype(*a.data())>>;
+};
+
+template <typename T>
 void write_bin(std::ostream& os, const T& val)
 {
-	if constexpr (std::is_same_v<T, std::string>)
+	if constexpr (ContiguousContainer<T>)
 	{
-		const std::size_t sz = val.size();
+		const size_t sz = val.size();
 		os.write(reinterpret_cast<const char*>(&sz), sizeof(sz));
-		os.write(val.data(), sz);
+
+		if (sz > 0)
+		{
+			os.write(reinterpret_cast<const char*>(val.data()), sz * sizeof(*val.data()));
+		}
+	}
+	else if constexpr (TriviallyCopyable<T>)
+	{
+		os.write(reinterpret_cast<const char*>(&val), sizeof(val));
 	}
 	else
 	{
-		os.write(reinterpret_cast<const char*>(&val), sizeof(val));
+		static_assert(sizeof(T) == 0, "Type is not serializable. It must be TriviallyCopyable or a ContiguousContainer of TriviallyCopyable elements.");
 	}
 }
 
 template <typename T>
 void read_bin(std::istream& is, T& val)
 {
-	if constexpr (std::is_same_v<T, std::string>)
+	if constexpr (ContiguousContainer<T>)
 	{
-		std::size_t sz = 0;
+		size_t sz = 0;
 		is.read(reinterpret_cast<char*>(&sz), sizeof(sz));
 		val.resize(sz);
-		is.read(val.data(), sz);
+
+		if (sz > 0)
+		{
+			is.read(reinterpret_cast<char*>(val.data()), sz * sizeof(*val.data()));
+		}
+	}
+	else if constexpr (TriviallyCopyable<T>)
+	{
+		is.read(reinterpret_cast<char*>(&val), sizeof(val));
 	}
 	else
 	{
-		is.read(reinterpret_cast<char*>(&val), sizeof(val));
+		static_assert(sizeof(T) == 0, "Type is not deserializable.");
 	}
 }
 } // namespace detail
