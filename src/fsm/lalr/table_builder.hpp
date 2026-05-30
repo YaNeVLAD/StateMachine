@@ -200,7 +200,9 @@ private:
 		while (changed)
 		{
 			changed = false;
-			for (auto current_I = I; const auto& [item, lookaheads] : current_I)
+
+			lr1_state_t additions;
+			for (const auto& [item, lookaheads] : I)
 			{
 				if (item.is_complete() || this->m_grammar.is_terminal(item.next_symbol()))
 				{
@@ -210,6 +212,9 @@ private:
 				T_Symbol B = item.next_symbol();
 				std::vector<T_Symbol> beta(item.rule.rhs.begin() + item.dot + 1, item.rule.rhs.end());
 
+				auto first_beta = algorithms::impl::ComputeFirstOf_fn{}(beta, first_sets, this->m_epsilon);
+				const bool beta_has_epsilon = first_beta.erase(this->m_epsilon) > 0;
+
 				for (const auto& rule : this->m_grammar.rules())
 				{
 					if (rule.lhs == B)
@@ -217,19 +222,28 @@ private:
 						std::size_t initial_dot = (rule.rhs.size() == 1 && rule.rhs[0] == this->m_epsilon) ? 1 : 0;
 						lr0_item_t new_core{ rule, initial_dot };
 
-						// FIRST(beta + a) for 'a'
-						for (const auto& la : lookaheads)
+						auto& target_la = additions[new_core];
+
+						target_la.insert(first_beta.begin(), first_beta.end());
+
+						if (beta_has_epsilon)
 						{
-							for (auto first_beta_la = compute_first_of_sequence_with_la(beta, la, first_sets);
-								const auto& b : first_beta_la)
-							{
-								if (I[new_core].insert(b).second)
-								{
-									changed = true;
-								}
-							}
+							target_la.insert(lookaheads.begin(), lookaheads.end());
 						}
 					}
+				}
+			}
+
+			for (auto& [new_item, new_lookaheads] : additions)
+			{
+				auto& existing_la = I[new_item];
+				std::size_t old_size = existing_la.size();
+
+				existing_la.insert(new_lookaheads.begin(), new_lookaheads.end());
+
+				if (existing_la.size() > old_size)
+				{
+					changed = true;
 				}
 			}
 		}
