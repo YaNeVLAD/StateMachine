@@ -212,18 +212,18 @@ public:
 						{
 							result.add_action(state_id, terminal, new_action);
 						}
-						call_warning_callback_if_set("[WARNING] " + msg + " -> Resolved: Prefer Shift.");
+						try_warn("[WARNING] " + msg + " -> Resolved: Prefer Shift.");
 					}
 					else if (is_rr)
 					{
-						call_warning_callback_if_set("[WARNING] " + msg + " -> Resolved: Keep First (R/R).");
+						try_warn("[WARNING] " + msg + " -> Resolved: Keep First (R/R).");
 					}
 				},
 				[&](detail::keep_first_t) {
-					call_warning_callback_if_set("[WARNING] " + msg + " -> Resolved: Keep First.");
+					try_warn("[WARNING] " + msg + " -> Resolved: Keep First.");
 				},
 				[&](detail::keep_last_t) {
-					call_warning_callback_if_set("[WARNING] " + msg + " -> Resolved: Keep Last.");
+					try_warn("[WARNING] " + msg + " -> Resolved: Keep Last.");
 
 					result.add_action(state_id, terminal, new_action);
 				}
@@ -325,7 +325,7 @@ private:
 		return compute_closure(J);
 	}
 
-	void call_warning_callback_if_set(const std::string& msg) const
+	void try_warn(const std::string& msg) const
 	{
 		if (m_warning_callback)
 		{
