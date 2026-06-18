@@ -267,6 +267,40 @@ public:
 			});
 	}
 
+	void recover(std::span<const T_Symbol> sync_tokens)
+	{
+		if (m_state_stack.empty() || m_input_ptr >= m_input.size())
+		{
+			m_is_finished = true;
+			return;
+		}
+
+		m_is_finished = false;
+		while (m_input_ptr < m_input.size())
+		{
+			if (std::ranges::find(sync_tokens, m_input[m_input_ptr]) != sync_tokens.end())
+			{
+				break;
+			}
+			m_input_ptr++;
+		}
+
+		T_Symbol sync_token = m_input_ptr < m_input.size()
+			? m_input[m_input_ptr]
+			: m_table.end_marker();
+
+		while (!m_state_stack.empty())
+		{
+			if (!actions::is_error(m_table.get_action(m_state_stack.back(), sync_token)))
+			{
+				return;
+			}
+
+			m_state_stack.pop_back();
+		}
+		m_is_finished = true;
+	}
+
 private:
 	const table_type& m_table;
 	T_Symbol m_epsilon;
