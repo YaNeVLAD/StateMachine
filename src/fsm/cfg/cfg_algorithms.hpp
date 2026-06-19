@@ -7,7 +7,9 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <map>
 #include <ranges>
+#include <sstream>
 
 namespace fsm
 {
