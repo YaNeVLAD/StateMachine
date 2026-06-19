@@ -3,6 +3,7 @@
 
 #include "../detail/cfg_rule.hpp"
 
+#include <iostream>
 #include <set>
 
 namespace fsm
